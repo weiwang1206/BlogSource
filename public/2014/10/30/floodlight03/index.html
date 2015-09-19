@@ -1,0 +1,325 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Floodlight No.3 | Wei's Blog</title>
+  <meta name="author" content="Wei Wang">
+  
+  <meta name="description" content="Controller (core/internal/Controller.java)(1)
+Controller类实现了IFloodlightProviderService服务。FloodlightProrider类中定义了controller的对象，作为一个模块出现。IFloodlightProviderService定义了controller和switch通信的接口。Controller类实现了控制器和交换机之间的交互。
+IFloodlightProviderService服务接口">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Floodlight No.3"/>
+  <meta property="og:site_name" content="Wei's Blog"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Wei's Blog" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fee42232f9a9cfb4d15d91b1d836dbc7e' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'true']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Wei's Blog</a></h1>
+  <h2><a href="/">Build my new life</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">首页</a></li>
+    
+      <li><a href="/archives">归档</a></li>
+    
+      <li><a href="/about">关于</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-10-30T13:46:20.000Z"><a href="/2014/10/30/floodlight03/">10月 30 2014</a></time>
+      
+      
+  
+    <h1 class="title">Floodlight No.3</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>Controller (core/internal/Controller.java)(1)</h2>
+<p>Controller类实现了IFloodlightProviderService服务。FloodlightProrider类中定义了controller的对象，作为一个模块出现。IFloodlightProviderService定义了controller和switch通信的接口。Controller类实现了控制器和交换机之间的交互。</p>
+<p><strong>IFloodlightProviderService服务接口</strong><br><a id="more"></a><br>首先，在该接口中定义了控制器的角色，包括：EQUAL, MASTER, SLAVE。</p>
+<pre><code>public static final FloodlightContextStore<span class="tag">&lt;<span class="title">Ethernet</span>&gt;</span> bcStore = new FloodlightContextStore<span class="tag">&lt;<span class="title">Ethernet</span>&gt;</span>();</code></pre>
+<p>新建FloodlightContextStore 对象，bcStore对象提供了FloodlightContext对象的操作方法，包括get，put，remove。而FloodlightContext对象实际上是一个map对象，用来存储事件的上下文信息（如packet-in payload）。</p>
+<pre><code><span class="title">public</span> synchronized void addOFMessageListener(<span class="type">OFType</span> <span class="typedef"><span class="keyword">type</span>, <span class="type">IOFMessageListener</span> listener) <span class="container">{
+    <span class="type">ListenerDispatcher</span>&lt;<span class="type">OFType</span>, <span class="type">IOFMessageListener</span>&gt; <span class="title">ldd</span> = 
+        <span class="title">messageListeners</span>.<span class="title">get</span>(<span class="title">type</span>);
+    <span class="title">if</span> (<span class="title">ldd</span> == <span class="title">null</span>) {
+        <span class="title">ldd</span> = <span class="title">new</span> <span class="type">ListenerDispatcher</span>&lt;<span class="type">OFType</span>, <span class="type">IOFMessageListener</span>&gt;();
+        <span class="title">messageListeners</span>.<span class="title">put</span>(<span class="title">type</span>, <span class="title">ldd</span>);
+    }</span></span>
+    ldd.addListener(<span class="typedef"><span class="keyword">type</span>, listener);</span>
+}</code></pre>
+<p>该函数向messageListener（map）中添加type和对应的message listener，各个模块通过该函数向控制器注册各种其关心的消息类型，当控制器收到该类型的消息后，将调用其对应的函数。</p>
+<pre><code>public Map<span class="tag">&lt;<span class="title">OFType,</span> <span class="attribute">List</span>&lt;<span class="attribute">IOFMessageListener</span>&gt;</span>&gt; getListeners() </code></pre>
+<p>getListeners（）函数获取所有listener。</p>
+<pre><code><span class="keyword">public</span> Map&lt;Long, IOFSwitch&gt; getSwitches() {
+    <span class="keyword">return</span> Collections<span class="variable">.unmodifiableMap</span>(<span class="keyword">this</span><span class="variable">.activeSwitches</span>);
+}</code></pre>
+<p>getSwitches函数获取所有active交换机，但是如果controller处于slave角色，将将不包含任何switch。</p>
+<pre><code><span class="keyword">public</span> <span class="keyword">void</span> addOFSwitchListener(IOFSwitchListener listener) {
+    <span class="keyword">this</span><span class="variable">.switchListeners</span><span class="variable">.add</span>(listener);
+}
+<span class="keyword">public</span> <span class="keyword">void</span> removeOFSwitchListener(IOFSwitchListener listener) {
+    <span class="keyword">this</span><span class="variable">.switchListeners</span><span class="variable">.remove</span>(listener);
+}</code></pre>
+<p>添加与删除switch的listener</p>
+<pre><code><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> terminate() {
+    log<span class="variable">.info</span>(<span class="string">"Calling System.exit"</span>);
+    System<span class="variable">.exit</span>(<span class="number">1</span>);
+}</code></pre>
+<p>退出controller进程。</p>
+<pre><code>public <span class="type">boolean</span> injectOfMessage(IOFSwitch sw, OFMessage msg) {
+    // call <span class="keyword">the</span> overloaded <span class="property">version</span> <span class="keyword">with</span> floodlight context <span class="keyword">set</span> <span class="keyword">to</span> null    
+<span class="command">    return</span> injectOfMessage(sw, msg, null);
+}
+……
+public <span class="type">boolean</span> injectOfMessage(IOFSwitch sw, OFMessage msg,
+                               FloodlightContext bc) {
+    <span class="keyword">if</span> (sw == null) {
+        <span class="command">log</span>.info(<span class="string">"Failed to inject OFMessage {} onto a null switch"</span>, msg);
+<span class="command">        return</span> <span class="constant">false</span>;
+    }
+    <span class="keyword">if</span> (!activeSwitches.containsKey(sw.getId())) <span class="constant">return</span> <span class="constant">false</span>;
+    <span class="keyword">try</span> {
+        // Pass Floodlight context <span class="keyword">to</span> <span class="keyword">the</span> handleMessages()
+        handleMessage(sw, msg, bc);
+    } catch (IOException e) {
+        <span class="command">log</span>.<span class="keyword">error</span>(<span class="string">"Error reinjecting OFMessage on switch {}"</span>, 
+                  HexString.toHexString(sw.getId()));
+<span class="command">        return</span> <span class="constant">false</span>;
+    }
+<span class="command">    return</span> <span class="constant">true</span>;
+}</code></pre>
+<p>重新为一个switch注入一个msg，并调用handleMessage函数处理该消息。</p>
+<pre><code><span class="keyword">public</span> <span class="keyword">void</span> handleOutgoingMessage(IOFSwitch sw, OFMessage m, FloodlightContext bc) {
+    <span class="keyword">if</span> (log<span class="variable">.isTraceEnabled</span>()) {
+        String str = OFMessage<span class="variable">.getDataAsString</span>(sw, m, bc);
+        log<span class="variable">.trace</span>(<span class="string">"{}"</span>, str);
+    }
+    List&lt;IOFMessageListener&gt; listeners = null;
+    <span class="keyword">if</span> (messageListeners<span class="variable">.containsKey</span>(m<span class="variable">.getType</span>())) {
+        listeners = 
+                messageListeners<span class="variable">.get</span>(m<span class="variable">.getType</span>())<span class="variable">.getOrderedListeners</span>();
+    }            
+    <span class="keyword">if</span> (listeners != null) {                
+        <span class="keyword">for</span> (IOFMessageListener listener : listeners) {
+            <span class="keyword">if</span> (listener instanceof IOFSwitchFilter) {
+                <span class="keyword">if</span> (!((IOFSwitchFilter)listener)<span class="variable">.isInterested</span>(sw)) {
+                    <span class="keyword">continue</span>;
+                }
+            }
+            <span class="keyword">if</span> (Command<span class="variable">.STOP</span><span class="variable">.equals</span>(listener<span class="variable">.receive</span>(sw, m, bc))) {
+                <span class="keyword">break</span>;
+            }
+        }
+    }
+}</code></pre>
+<p>处理发向switch的outgoing包，调用注册了该类型OFType的listener。</p>
+<pre><code><span class="title">public</span> BasicFactory getOFMessageFactory();</code></pre>
+<p>返回factory，该factory为BasicFactory类对象，实现了OFMessageFactory, OFActionFactory, OFStatisticsFactory, OFVendorDataFactory等，用来生成OF的message和actions。</p>
+<p>最后还有一些简单的函数</p>
+<pre><code><span class="keyword">public</span> <span class="keyword">void</span> addInfoProvider(String type, IInfoProvider provider); <span class="comment">//添加各种类型的信息的provider，获取服务的信息</span>
+<span class="keyword">public</span> <span class="keyword">void</span> removeInfoProvider(String type, IInfoProvider provider); <span class="comment">//删除provider</span>
+<span class="keyword">public</span> Map&lt;String, Object&gt; getControllerInfo(String type); <span class="comment">//获取一种特定类型的控制器信息</span>
+<span class="keyword">public</span> <span class="keyword">long</span> getSystemStartTime();<span class="comment">//获取系统时间</span>
+<span class="keyword">public</span> <span class="keyword">void</span> setAlwaysClearFlowsOnSwAdd(boolean <span class="keyword">value</span>);<span class="comment">//设置当交换机连接到控制器时，清除其流表</span></code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+  
+  <div class="categories">
+    <a href="/categories/Floodlight/">Floodlight</a>
+  </div>
+
+        
+  
+  <div class="tags">
+    <a href="/tags/Floodlight/">Floodlight</a>, <a href="/tags/Controller/">Controller</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+<!-- Duoshuo Comment BEGIN -->
+	<div class="ds-thread"></div>
+<script type="text/javascript">
+var duoshuoQuery = {short_name:"weiwang1206"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = 'http://static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		|| document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+	</script>
+<!-- Duoshuo Comment END -->
+</section>
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:weiwang1206.github.io/">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/categories/Network/">Network</a><small>2</small></li>
+  
+    <li><a href="/categories/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/categories/Others/">Others</a><small>1</small></li>
+  
+    <li><a href="/categories/Photo/">Photo</a><small>2</small></li>
+  
+    <li><a href="/categories/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/categories/Research/">Research</a><small>1</small></li>
+  
+    <li><a href="/categories/Ryu/">Ryu</a><small>10</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Controller/">Controller</a><small>16</small></li>
+  
+    <li><a href="/tags/DataCenter Network/">DataCenter Network</a><small>1</small></li>
+  
+    <li><a href="/tags/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/tags/Flow Schedule/">Flow Schedule</a><small>1</small></li>
+  
+    <li><a href="/tags/Hexo/">Hexo</a><small>1</small></li>
+  
+    <li><a href="/tags/Network/">Network</a><small>4</small></li>
+  
+    <li><a href="/tags/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/tags/Photo/">Photo</a><small>1</small></li>
+  
+    <li><a href="/tags/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/tags/Ryu/">Ryu</a><small>10</small></li>
+  
+    <li><a href="/tags/Switch/">Switch</a><small>1</small></li>
+  
+    <li><a href="/tags/github/">github</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2014 Wei Wang
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,279 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Ryu文档-2-3-Ryu组件 | Wei's Blog</title>
+  <meta name="author" content="Wei Wang">
+  
+  <meta name="description" content="2.3 Ryu应用的API
+2.3.1 Ryu应用的编程模型
+ryu应用是单线程的实体，应用之间通过消息彼此通信。
+ryu应用之间互相发送异步的消息。ryu的OpenFlow控制器不属于ryu应用，但也是产生消息的源头。虽然ryu的消息可以包含任意的python objects，但是并不推荐在ryu应用之间传递较大的实体。">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Ryu文档-2-3-Ryu组件"/>
+  <meta property="og:site_name" content="Wei's Blog"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Wei's Blog" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fee42232f9a9cfb4d15d91b1d836dbc7e' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'true']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Wei's Blog</a></h1>
+  <h2><a href="/">Build my new life</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">首页</a></li>
+    
+      <li><a href="/archives">归档</a></li>
+    
+      <li><a href="/about">关于</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-11-26T14:21:38.000Z"><a href="/2014/11/26/RyuDoc4/">11月 26 2014</a></time>
+      
+      
+  
+    <h1 class="title">Ryu文档-2-3-Ryu组件</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h1>2.3 Ryu应用的API</h1>
+<h2>2.3.1 Ryu应用的编程模型</h2>
+<p>ryu应用是单线程的实体，应用之间通过消息彼此通信。</p>
+<p>ryu应用之间互相发送异步的消息。ryu的OpenFlow控制器不属于ryu应用，但也是产生消息的源头。虽然ryu的消息可以包含任意的python objects，但是并不推荐在ryu应用之间传递较大的实体。<br><a id="more"></a><br>每个ryu应用有一个消息的接收队列，是一个FIFO队列。每个ryu应用都有一个事件处理线程，该线程不断的从接收队列冲取出消息，并根据消息类型调用相应的消息处理函数。消息处理函数似乎在实现处理线程的上下文环境中被调用的，因此必须做好阻塞。</p>
+<p>ryu有很多类型的消息类型来实现ryu应用之间的异步消息。</p>
+<p>contexts是ryu应用公用的一个objects，因此不要用于新的代码中。<br>（意思contexts这个变量是内部变量？不要随便用？）</p>
+<h2>2.3.2 创建一个Ryu应用</h2>
+<p>一个ryu应用是作为一个python模块的，并且继承了ryu.base.app_manager.RyuApp类。如果两个相同的ryu应用被定义在一个模块中，那么app_manager将选择第一个出现的。ryu应用是单例的，只允许有一个给定的ryu应用。</p>
+<h2>2.3.3 如何获取ryu消息</h2>
+<p>ryu应用通过注册的方式与消息挂钩，通过ryu.controller.handler.set_ev_cls 装饰器来注册某一个时间的处理函数。该装饰器第一个参数定义注册的消息类型，第二个参数可以指定一个接收的时间阶段（如下图），来指定在什么时候才为这个处理函数生成消息。</p>
+<p><img src="/img/ryudoc4phase.jpg" alt="phase"></p>
+<h2>2.3.4 如何生成ryu消息</h2>
+<p>ryu应用可以使用send_event 或者 send_event_to_observers 函数发送消息</p>
+<h2>2.3.5 事件类</h2>
+<p>事件类描述了ryu系统中的事件。ryu中所有的事件类都已“Event”作为前缀。消息事件可以由ryu的核心组件生成，也可以有ryu应用生成。</p>
+<p>ryu.controller.ofp_event 模块定义了openflow消息的事件类。该类消息被规范的命名为ryu.controller.ofp_event.EventOFPxxxx。例如EventOFPPacketIn是OF的packet-in消息。OpenFlow控制器自通的解析Openflow消息并将消息时间发送给关心该消息类型的应用。</p>
+<h2>2.3.6 ryu.controller.controller.Datapath</h2>
+<p>该类定义了与控制器相连的交换机的信息，类中定义的属性如下。</p>
+<p><img src="/img/ryudoc4dp.jpg" alt="datapath"></p>
+<h2>2.3.7 ryu.controller.event.EventBase</h2>
+<p>这个类是所有事件类的基类。ryu应用可以继承这个类来自定义事件类型</p>
+<h2>2.3.8 ryu.controller.event.EventRequestBase</h2>
+<p>请求事件的基类</p>
+<h2>2.3.9 ryu.controller.event.EventReplyBase</h2>
+<p>应答事件基类</p>
+<h2>2.3.10 ryu.controller.ofp_event.EventOFPStateChange</h2>
+<p>状态变更事件</p>
+<h2>2.3.11 ryu.controller.dpset.EventDP</h2>
+<p>当交换机连接到控制器或者断开与控制器的连接时产生该事件，ryu.controller.ofp_event.EventOFPStateChange 类也可以获取该事件。从该事件中可以获取关联该事件的交换机dp。</p>
+<h2>2.3.12 ryu.controller.dpset.EventPortAdd（EventPortDelete、EventPortModify）</h2>
+<p>当一个交换机添加（删除，修改）新端口时产生该事件，事件包含的信息包括dp和port</p>
+<h2>2.3.13 ryu.controller.network.EventNetworkPort</h2>
+<p>这个时间跟一个网络相关（可能是一个虚拟网络？），当网络中添加或者删除一个端口时，产生该事件。该事件可以获取的信息包括，network_id, dpid, port_no, 以及add_del(是添加还是删除)</p>
+<h2>2.3.14 ryu.controller.network.EventNetworkDel</h2>
+<p>当一个网络被删除时产生该事件，可以获取的信息是network_id</p>
+<h2>2.3.15 ryu.controller.network.EventMacAddress</h2>
+<p>当一个端口的MAC地址添加时，产生该事件，可以获取的信息包括network_id dpid port_no mac_address add_del</p>
+<h2>2.3.16 ryu.controller.tunnels.EventTunnelKeyAdd(tunnels.EventTunnelKeyDel)</h2>
+<p>当一个隧道的key被注册或者更新(删除)时，产生该事件。可以获取的信息包括 network_id tunnel_key</p>
+<h2>2.3.17 ryu.controller.tunnels.EventTunnelPort</h2>
+<p>当一个隧道的端口被添加或删除时产生该事件，信息包括dpid port_no remote_dpid add_del</p>
+
+      
+    </div>
+    <footer>
+      
+        
+  
+  <div class="categories">
+    <a href="/categories/Ryu/">Ryu</a>
+  </div>
+
+        
+  
+  <div class="tags">
+    <a href="/tags/Ryu/">Ryu</a>, <a href="/tags/Controller/">Controller</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+<!-- Duoshuo Comment BEGIN -->
+	<div class="ds-thread"></div>
+<script type="text/javascript">
+var duoshuoQuery = {short_name:"weiwang1206"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = 'http://static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		|| document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+	</script>
+<!-- Duoshuo Comment END -->
+</section>
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:weiwang1206.github.io/">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/categories/Network/">Network</a><small>2</small></li>
+  
+    <li><a href="/categories/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/categories/Others/">Others</a><small>1</small></li>
+  
+    <li><a href="/categories/Photo/">Photo</a><small>2</small></li>
+  
+    <li><a href="/categories/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/categories/Research/">Research</a><small>1</small></li>
+  
+    <li><a href="/categories/Ryu/">Ryu</a><small>10</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Controller/">Controller</a><small>16</small></li>
+  
+    <li><a href="/tags/DataCenter Network/">DataCenter Network</a><small>1</small></li>
+  
+    <li><a href="/tags/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/tags/Flow Schedule/">Flow Schedule</a><small>1</small></li>
+  
+    <li><a href="/tags/Hexo/">Hexo</a><small>1</small></li>
+  
+    <li><a href="/tags/Network/">Network</a><small>4</small></li>
+  
+    <li><a href="/tags/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/tags/Photo/">Photo</a><small>1</small></li>
+  
+    <li><a href="/tags/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/tags/Ryu/">Ryu</a><small>10</small></li>
+  
+    <li><a href="/tags/Switch/">Switch</a><small>1</small></li>
+  
+    <li><a href="/tags/github/">github</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2014 Wei Wang
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

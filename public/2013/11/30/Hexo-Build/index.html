@@ -1,0 +1,271 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Github搭建Hexo | Wei's Blog</title>
+  <meta name="author" content="Wei Wang">
+  
+  <meta name="description" content="搞了一天终于搞定了Hexo的搭建，今后把博客开在这里了，来记录我工作学习和生活。">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Github搭建Hexo"/>
+  <meta property="og:site_name" content="Wei's Blog"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Wei's Blog" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fee42232f9a9cfb4d15d91b1d836dbc7e' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'true']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Wei's Blog</a></h1>
+  <h2><a href="/">Build my new life</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">首页</a></li>
+    
+      <li><a href="/archives">归档</a></li>
+    
+      <li><a href="/about">关于</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2013-11-30T08:08:28.000Z"><a href="/2013/11/30/Hexo-Build/">11月 30 2013</a></time>
+      
+      
+  
+    <h1 class="title">Github搭建Hexo</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>搞了一天终于搞定了Hexo的搭建，今后把博客开在这里了，来记录我工作学习和生活。</p>
+<a id="more"></a>
+
+<p>之前就一直想写博客，记录我的学习历程，最开始搭建在GAE上，后来总是要翻墙，比较麻烦，就停止了。再后来转战Evernote了，记录在本地了，后来发现这样无法与广大学者交流学习，提高比较慢，分享的也少，所以就又筹划着开博客了。</p>
+<p>然后就，我的前提是不买VPS，不买域名，反正就是不花钱（本人是穷PhD一枚），Google了一下，发现Githug Pages还不错，它的初衷是给github上的项目提供一个介绍页的，避免大家直接看到烦乱的Code。但是也可以作为一个host，搭建我们的Blog（程序员们太聪明了）。而且可以用git的方式更新，太方便了。</p>
+<p>Host有了，用什么搭建呢？Google下发现，Hexo利用node.js，而且和github结合的比较紧密，搭建方便。</p>
+<p>我是在windows上搭建的，估计大多数朋友写博客也是在window吧,，闲话少说，切入正题.</p>
+<p><strong>准备工作</strong></p>
+<p>首先需要一个github的账号</p>
+<p>下载安装git，下载地址 <a href="http://msysgit.github.io/" target="_blank"><a href="http://msysgit.github.io/">http://msysgit.github.io/</a></a><br>安装git的时候最好选上那个在CMD中也可以运行的选项，否则以后更新博客的时候必须得用那个git bash</p>
+<p>下载安装node.js，下载地址 <a href="http://nodejs.org/" target="_blank"><a href="http://nodejs.org/">http://nodejs.org/</a></a></p>
+<p>安装hexo</p>
+<p>在命令行中输入</p>
+<pre><code>npm install -g hexo
+hexo init <span class="tag">&lt;<span class="title">your</span> <span class="attribute">folder</span>&gt;</span> #博客在本地将来要放的地方</code></pre>
+<p>然后就在指定的目录中生成了一堆的文件，此时在本地已经有了基本的blog的框架了。</p>
+<p><strong>使用与配置</strong></p>
+<p>可以在本地预览一下默认的blog的样子，在你指定的目录中（必须是在那个目录下）输入：</p>
+<pre><code><span class="title">hexo</span> server</code></pre>
+<p>启动本地服务器，然后在浏览器打开 <a href="localhost:4000">localhost:4000</a>，就可以预览了</p>
+<p>接下来就要将你的本地blog部署到Github上，但在这之前需要做一个重要的工作，就是使用ssh-key可以登录github，没有这个的话后面会遇到很多access deny的麻烦，方法很简单</p>
+<p>ssh-keygen -t rsa</p>
+<p>连续按三次回车就会生成，~/.ssh/id_rsa.pub，用记事本打开，将其复制到github-&gt;accounting setting-&gt;SSH Key-&gt;Add SSH Key 的Key一栏中，名称自己随便取。之后会让你填一下github的密码。</p>
+<p>然后在cmd中输入</p>
+<pre><code><span class="title">ssh</span> -vT git<span class="variable">@github</span>.com</code></pre>
+<p>来测试是否成功</p>
+<p>成功后，修改<em>_config.yml</em> 文件的deploy项，注意type前面的缩进和冒号后面的空格</p>
+<pre><code><span class="method">deploy:</span>
+      <span class="method">type:</span> github
+      <span class="method">repository:</span> git@github.<span class="method">com:</span>weiwang1206/weiwang1206.github.io.git
+      <span class="method">branch:</span> master</code></pre>
+<p>这里需要注意的是，首先得有一个project在github中，而且名字<strong>必须</strong>为 <em>username</em>.github.io</p>
+<p>生成并部署</p>
+<pre><code><span class="comment">hexo</span> <span class="comment">deploy</span> <span class="literal">-</span><span class="literal">-</span><span class="comment">generate</code></pre>
+<p>之后我们就可以在浏览器打开 <em>username</em>.github.io 来访问网页，可能需要等一会儿。</p>
+<p>然后具体hexo如何写blog可以参加hexo的<a href="http://zespia.tw/hexo/" target="_blank">官方网站</a>来学习</p>
+
+      
+    </div>
+    <footer>
+      
+        
+  
+  <div class="categories">
+    <a href="/categories/Others/">Others</a>
+  </div>
+
+        
+  
+  <div class="tags">
+    <a href="/tags/Hexo/">Hexo</a>, <a href="/tags/github/">github</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+<!-- Duoshuo Comment BEGIN -->
+	<div class="ds-thread"></div>
+<script type="text/javascript">
+var duoshuoQuery = {short_name:"weiwang1206"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = 'http://static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		|| document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+	</script>
+<!-- Duoshuo Comment END -->
+</section>
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:weiwang1206.github.io/">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/categories/Network/">Network</a><small>2</small></li>
+  
+    <li><a href="/categories/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/categories/Others/">Others</a><small>1</small></li>
+  
+    <li><a href="/categories/Photo/">Photo</a><small>2</small></li>
+  
+    <li><a href="/categories/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/categories/Research/">Research</a><small>1</small></li>
+  
+    <li><a href="/categories/Ryu/">Ryu</a><small>10</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Controller/">Controller</a><small>16</small></li>
+  
+    <li><a href="/tags/DataCenter Network/">DataCenter Network</a><small>1</small></li>
+  
+    <li><a href="/tags/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/tags/Flow Schedule/">Flow Schedule</a><small>1</small></li>
+  
+    <li><a href="/tags/Hexo/">Hexo</a><small>1</small></li>
+  
+    <li><a href="/tags/Network/">Network</a><small>4</small></li>
+  
+    <li><a href="/tags/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/tags/Photo/">Photo</a><small>1</small></li>
+  
+    <li><a href="/tags/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/tags/Ryu/">Ryu</a><small>10</small></li>
+  
+    <li><a href="/tags/Switch/">Switch</a><small>1</small></li>
+  
+    <li><a href="/tags/github/">github</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2014 Wei Wang
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

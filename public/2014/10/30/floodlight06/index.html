@@ -1,0 +1,262 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Floodlight No.6 | Wei's Blog</title>
+  <meta name="author" content="Wei Wang">
+  
+  <meta name="description" content="TopologyManager Module
+该模块接收LinkDiscover的跟新消息，当有链路跟新时，将重新计算topo。主要调用TopologyInstance类中的compute函数。compute函数即注释如下">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Floodlight No.6"/>
+  <meta property="og:site_name" content="Wei's Blog"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Wei's Blog" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fee42232f9a9cfb4d15d91b1d836dbc7e' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'true']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Wei's Blog</a></h1>
+  <h2><a href="/">Build my new life</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">首页</a></li>
+    
+      <li><a href="/archives">归档</a></li>
+    
+      <li><a href="/about">关于</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-10-30T14:26:36.000Z"><a href="/2014/10/30/floodlight06/">10月 30 2014</a></time>
+      
+      
+  
+    <h1 class="title">Floodlight No.6</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>TopologyManager Module</h2>
+<p>该模块接收LinkDiscover的跟新消息，当有链路跟新时，将重新计算topo。主要调用TopologyInstance类中的compute函数。compute函数即注释如下<br><a id="more"></a><br>    public void compute() {</p>
+<pre><code>    <span class="regexp">//</span> Step <span class="number">1</span>: Compute clusters ignoring broadcast domain links
+    <span class="regexp">//</span> Create nodes <span class="keyword">for</span> clusters <span class="keyword">in</span> the higher level topology
+    <span class="regexp">//</span> Must ignore blocked links.
+    identifyOpenflowDomains();<span class="regexp">//</span>利用强连通分量Tarjan算法，将topo划分强连通子树
+
+    <span class="regexp">//</span> Step <span class="number">1.1</span>: Add links to clusters
+    <span class="regexp">//</span> Avoid adding blocked links to clusters
+    addLinksToOpenflowDomains();<span class="regexp">//</span>将同属于一个连通分量的<span class="keyword">switch</span>的link添加到连通分量中
+
+    <span class="regexp">//</span> Step <span class="number">2.</span> Compute shortest path trees <span class="keyword">in</span> each cluster <span class="keyword">for</span> 
+    <span class="regexp">//</span> unicast routing.  The trees are rooted at the destination.
+    <span class="regexp">//</span> Cost <span class="keyword">for</span> tunnel links <span class="keyword">and</span> direct links are the same.
+    calculateShortestPathTreeInClusters();<span class="regexp">//</span>使用dijstra算法，计算一个cluster内部的所有点最短路径
+
+    <span class="regexp">//</span> Step <span class="number">3.</span> Compute broadcast tree <span class="keyword">in</span> each cluster.
+    <span class="regexp">//</span> Cost <span class="keyword">for</span> tunnel links are high to discourage use <span class="keyword">of</span> 
+    <span class="regexp">//</span> tunnel links.  The cost <span class="keyword">is</span> set to the number <span class="keyword">of</span> nodes
+    <span class="regexp">//</span> <span class="keyword">in</span> the cluster + <span class="number">1</span>, to use as minimum number <span class="keyword">of</span> 
+    <span class="regexp">//</span> clusters as possible.
+    calculateBroadcastNodePortsInClusters();
+
+    <span class="regexp">//</span> Step <span class="number">4.</span> print topology.
+    <span class="regexp">//</span> printTopology();
+}</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+  
+  <div class="categories">
+    <a href="/categories/Floodlight/">Floodlight</a>
+  </div>
+
+        
+  
+  <div class="tags">
+    <a href="/tags/Floodlight/">Floodlight</a>, <a href="/tags/Controller/">Controller</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+<!-- Duoshuo Comment BEGIN -->
+	<div class="ds-thread"></div>
+<script type="text/javascript">
+var duoshuoQuery = {short_name:"weiwang1206"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = 'http://static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		|| document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+	</script>
+<!-- Duoshuo Comment END -->
+</section>
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:weiwang1206.github.io/">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/categories/Network/">Network</a><small>2</small></li>
+  
+    <li><a href="/categories/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/categories/Others/">Others</a><small>1</small></li>
+  
+    <li><a href="/categories/Photo/">Photo</a><small>2</small></li>
+  
+    <li><a href="/categories/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/categories/Research/">Research</a><small>1</small></li>
+  
+    <li><a href="/categories/Ryu/">Ryu</a><small>10</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Controller/">Controller</a><small>16</small></li>
+  
+    <li><a href="/tags/DataCenter Network/">DataCenter Network</a><small>1</small></li>
+  
+    <li><a href="/tags/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/tags/Flow Schedule/">Flow Schedule</a><small>1</small></li>
+  
+    <li><a href="/tags/Hexo/">Hexo</a><small>1</small></li>
+  
+    <li><a href="/tags/Network/">Network</a><small>4</small></li>
+  
+    <li><a href="/tags/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/tags/Photo/">Photo</a><small>1</small></li>
+  
+    <li><a href="/tags/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/tags/Ryu/">Ryu</a><small>10</small></li>
+  
+    <li><a href="/tags/Switch/">Switch</a><small>1</small></li>
+  
+    <li><a href="/tags/github/">github</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2014 Wei Wang
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,436 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Ryu代码解析（二） | Wei's Blog</title>
+  <meta name="author" content="Wei Wang">
+  
+  <meta name="description" content="Ryu事件处理函数的挂接方式分析
+Ryu支持用户自定义事件处理函数，当该事件发生时，用户定义的处理函数会被自动的调用。那么这个机制具体是如何实现的呢？本篇博客就针对该问题，做一个简单的梳理，才疏学浅，欢迎指正！
+首先来看RYU文档中的那个第一个APP程序：
+from ryu.base import app_manager
+from ryu.controller import ofp_event
+from ryu.controller.handler import MAIN_DISPATCHER
+from ryu.controller.handler import set_ev_cls
+
+class L2Switch(app_manager.RyuApp):
+    def __init__(self, *args, **kwargs):
+        super(L2Switch, self).__init__(*args, **kwargs)
+
+    @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
+    def packet_in_handler(self, ev):
+        msg = ev.msg
+        dp = msg.datapath
+        ofp = dp.ofproto
+        ofp_parser = dp.ofproto_parser
+
+        actions = [ofp_parser.OFPActionOutput(ofp.OFPP_FLOOD)]
+        out = ofp_parser.OFPPacketOut(
+        datapath=dp, buffer_id=msg.buffer_id, in_port=msg.in_port,
+        actions=actions)
+        dp.send_msg(out)">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Ryu代码解析（二）"/>
+  <meta property="og:site_name" content="Wei's Blog"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Wei's Blog" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fee42232f9a9cfb4d15d91b1d836dbc7e' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'true']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Wei's Blog</a></h1>
+  <h2><a href="/">Build my new life</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">首页</a></li>
+    
+      <li><a href="/archives">归档</a></li>
+    
+      <li><a href="/about">关于</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-11-30T16:20:33.000Z"><a href="/2014/12/01/ryu-source-analysis-2md/">12月 1 2014</a></time>
+      
+      
+  
+    <h1 class="title">Ryu代码解析（二）</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>Ryu事件处理函数的挂接方式分析</h2>
+<p>Ryu支持用户自定义事件处理函数，当该事件发生时，用户定义的处理函数会被自动的调用。那么这个机制具体是如何实现的呢？本篇博客就针对该问题，做一个简单的梳理，才疏学浅，欢迎指正！</p>
+<p>首先来看RYU文档中的那个第一个APP程序：</p>
+<pre><code>from ryu.base import app_manager
+from ryu.controller import ofp_event
+from ryu.controller.handler import MAIN_DISPATCHER
+from ryu.controller.handler import set_ev_cls
+
+<span class="class"><span class="keyword">class</span> <span class="title">L2Switch</span>(<span class="title">app_manager</span>.<span class="title">RyuApp</span>):
+    <span class="title">def</span> <span class="title">__init__</span>(<span class="title">self</span>, *<span class="title">args</span>, **<span class="title">kwargs</span>):
+        <span class="title">super</span>(<span class="title">L2Switch</span>, <span class="title">self</span>).<span class="title">__init__</span>(*<span class="title">args</span>, **<span class="title">kwargs</span>)
+
+    @<span class="title">set_ev_cls</span>(<span class="title">ofp_event</span>.<span class="title">EventOFPPacketIn</span>, <span class="title">MAIN_DISPATCHER</span>)
+    <span class="title">def</span> <span class="title">packet_in_handler</span>(<span class="title">self</span>, <span class="title">ev</span>):
+        <span class="title">msg</span> = <span class="title">ev</span>.<span class="title">msg</span>
+        <span class="title">dp</span> = <span class="title">msg</span>.<span class="title">datapath</span>
+        <span class="title">ofp</span> = <span class="title">dp</span>.<span class="title">ofproto</span>
+        <span class="title">ofp_parser</span> = <span class="title">dp</span>.<span class="title">ofproto_parser</span>
+
+        <span class="title">actions</span> = [<span class="title">ofp_parser</span>.<span class="title">OFPActionOutput</span>(<span class="title">ofp</span>.<span class="title">OFPP_FLOOD</span>)]
+        <span class="title">out</span> = <span class="title">ofp_parser</span>.<span class="title">OFPPacketOut</span>(
+        <span class="title">datapath</span>=<span class="title">dp</span>, <span class="title">buffer_id</span>=<span class="title">msg</span>.<span class="title">buffer_id</span>, <span class="title">in_port</span>=<span class="title">msg</span>.<span class="title">in_port</span>,
+        <span class="title">actions</span>=<span class="title">actions</span>)
+        <span class="title">dp</span>.<span class="title">send_msg</span>(<span class="title">out</span>)</code></pre>
+<p><a id="more"></a><br>这段代码中有两个关键的地方，第一是L2Switch类继承了app_manager.RyuAPP类（这是自定义APP要求的）。第二个使用set_ev_cls装饰器装饰了我们自定义的事件处理函数packet_in_handler.</p>
+<p>首先，我们来研究一下set_ev_cls装饰器到底做了些什么事情？ set_ev_cls函数定义如下：</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">set_ev_cls</span><span class="params">(ev_cls, dispatchers=None)</span>:</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">_set_ev_cls_dec</span><span class="params">(handler)</span>:</span>
+        <span class="keyword">if</span> <span class="string">'callers'</span> <span class="keyword">not</span> <span class="keyword">in</span> dir(handler):
+            handler.callers = {}
+        <span class="keyword">for</span> e <span class="keyword">in</span> _listify(ev_cls):
+            handler.callers[e] = _Caller(_listify(dispatchers), e.__module__)
+        <span class="keyword">return</span> handler
+    <span class="keyword">return</span> _set_ev_cls_dec</code></pre>
+<p>首先这个装饰器是带参数的装饰器，在使用@set_ev_cls修饰packet_in_hander函数是，实际的过程是：</p>
+<p><strong>packet_in_handler=set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)(packet_in_handler)</strong></p>
+<p>其实就是将packet_in_handler作为参数传入了_set_ev_cls_dec函数，做了一些事情之后，又把packet_in_handler返回回来。那么_set_ev_cls_dec函数做了什么呢，其实很简单。</p>
+<pre><code> <span class="keyword">if</span> <span class="string">'callers'</span> not in dir(handler): 
+            <span class="transposed_variable">handler.</span>callers = <span class="cell">{}</span>
+        <span class="keyword">for</span> e in _listify(ev_cls):
+            <span class="transposed_variable">handler.</span>callers<span class="matrix">[e]</span> = _Caller(_listify(dispatchers), <span class="transposed_variable">e.</span>__module__)</code></pre>
+<p>首先判断handler函数中有没有callers属性，函数还可以有属性？是的，举个例子</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">foo</span><span class="params">()</span>:</span>
+    <span class="keyword">print</span> <span class="string">"I am a function"</span>
+
+foo.attr = <span class="number">1</span>
+<span class="keyword">print</span> foo.attr</code></pre>
+<p>结果会输出1.</p>
+<p>因为一个handler可能会被多个装饰器装饰，所以先判断有没有该属性，没有的话新建一个字典。ev_cls就是传进来的ofp_event.EventOFPPacketIn类，OPF事件类是在不同的OF协议中实现的（如在OF1.4文件ofproto_1_4_parser中）。这里他把事件类转化为list，这里不懂为什么要转为为list，难道还有多个子事件？不过怎么样，这里将在caller属性中添加一个元素，key是事件类型，value是一个_Caller对象，该对象主要就是记下dispatchers，和这个事件的模块名。</p>
+<pre><code><span class="class"><span class="keyword">class</span> <span class="title">_Caller</span>(<span class="title">object</span>):
+    """<span class="title">Describe</span> <span class="title">how</span> <span class="title">to</span> <span class="title">handle</span> <span class="title">an</span> <span class="title">event</span> <span class="title">class</span>.
+    """
+    <span class="title">def</span> <span class="title">__init__</span>(<span class="title">self</span>, <span class="title">dispatchers</span>, <span class="title">ev_source</span>):
+        """<span class="title">Initialize</span> <span class="title">_Caller</span>.
+        :<span class="title">param</span> <span class="title">dispatchers</span>: <span class="title">A</span> <span class="title">list</span> <span class="title">of</span> <span class="title">states</span> <span class="title">or</span> <span class="title">a</span> <span class="title">state</span>, <span class="title">in</span> <span class="title">which</span> <span class="title">this</span>
+                            <span class="title">is</span> <span class="title">in</span> <span class="title">effect</span>.
+                            <span class="title">None</span> <span class="title">and</span> [] <span class="title">mean</span> <span class="title">all</span> <span class="title">states</span>.
+        :<span class="title">param</span> <span class="title">ev_source</span>: <span class="title">The</span> <span class="title">module</span> <span class="title">which</span> <span class="title">generates</span> <span class="title">the</span> <span class="title">event</span>.
+                          <span class="title">ev_cls</span>.<span class="title">__module__</span> <span class="title">for</span> <span class="title">set_ev_cls</span>.
+                          <span class="title">None</span> <span class="title">for</span> <span class="title">set_ev_handler</span>.
+        """
+        <span class="title">self</span>.<span class="title">dispatchers</span> = <span class="title">dispatchers</span>
+        <span class="title">self</span>.<span class="title">ev_source</span> = <span class="title">ev_source</span></code></pre>
+<p>到这里set_ev_cls装饰器就分析完了，回想一下它到底做了什么？其实很简单，就是给handler函数添加了一个属性callers，然后在callers中保存了该handler关心的事件类型和dispatchers。</p>
+<p>其实到这里，并没有和系统运行过程中的消息路由关联起来，我们接着往下看。</p>
+<p>还记得在<a href="http://geekwei.com/2014/11/27/ryu-source-analysis-1/#more" target="_blank">代码分析(一)</a>中讲的main函数么，该函数在加载了app之后，调用了instantiate_apps()函数,该函数对每个app进行初始化。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">instantiate_apps</span><span class="params">(self, *args, **kwargs)</span>:</span>
+    <span class="keyword">for</span> app_name, cls <span class="keyword">in</span> self.applications_cls.items():
+        self._instantiate(app_name, cls, *args, **kwargs)
+
+    self._update_bricks()
+    self.report_bricks()
+
+    threads = []
+    <span class="keyword">for</span> app <span class="keyword">in</span> self.applications.values():
+        t = app.start()
+        <span class="keyword">if</span> t <span class="keyword">is</span> <span class="keyword">not</span> <span class="built_in">None</span>:
+            threads.append(t)
+    <span class="keyword">return</span> threads</code></pre>
+<p>在该函数中，首先调用_instantiate实例化app，并且调用regeister_app()函数，</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">register_app</span><span class="params">(app)</span>:</span>
+    <span class="keyword">assert</span> isinstance(app, RyuApp)
+    <span class="keyword">assert</span> app.name <span class="keyword">not</span> <span class="keyword">in</span> SERVICE_BRICKS
+    SERVICE_BRICKS[app.name] = app
+    register_instance(app)</code></pre>
+<p>该函数有两行关键代码，第一将app加入 SERVICE_BRICKS中， SERVICE_BRICKS是一个全局变量，记录着所有的app实例，之后的代码中会用到它，暂且记住。之后调用register_instance(app)函数（该函数在handler.py中定义）<br>    def register_instance(i):<br>        for _k, m in inspect.getmembers(i, inspect.ismethod):</p>
+<pre><code>        <span class="comment"># LOG.debug('instance %s k %s m %s', i, _k, m)</span>
+        <span class="keyword">if</span> _has_caller(m):
+            <span class="keyword">for</span> ev_cls, c <span class="keyword">in</span> m.callers.iteritems():
+                i.register_handler(ev_cls, m)
+
+<span class="function"><span class="keyword">def</span> <span class="title">register_handler</span><span class="params">(self, ev_cls, handler)</span>:</span>
+    <span class="keyword">assert</span> callable(handler)
+    self.event_handlers.setdefault(ev_cls, [])
+    self.event_handlers[ev_cls].append(handler)</code></pre>
+<p>该函数首先使用inspect遍历该app中的所有方法，然后通过_has_caller方法判断该方法是否有“caller”属性，上文中介绍了使用装饰器函数set_ev_cls时为每一个handler函数添加了caller属性，因此这里就是遍历所有的handler函数，将callers中保存的事件及函数（ev_cls,m）保存在app类的event_handlers属性中。</p>
+<p>接下来调用_update_bricks函数, 这个函数非常重要</p>
+<pre><code> def _update_bricks(self):
+    <span class="keyword">for</span> i <span class="keyword">in</span> SERVICE_BRICKS.values():
+        <span class="keyword">for</span> _k, m <span class="keyword">in</span> inspect.getmembers(i, inspect.ismethod):
+            <span class="keyword">if</span> not hasattr(m, <span class="string">'callers'</span>):
+                <span class="keyword">continue</span>
+            <span class="keyword">for</span> ev_cls, c <span class="keyword">in</span> m.callers.iteritems():
+                <span class="keyword">if</span> not c.ev_source:
+                    <span class="keyword">continue</span>
+
+                brick = _lookup_service_brick_by_mod_name(c.ev_source)
+                <span class="keyword">if</span> brick:
+                    brick.register_observer(ev_cls, i.name,
+                                            c.dispatchers)
+
+                # allow RyuApp and Event <span class="class"><span class="keyword">class</span> <span class="title">are</span> <span class="title">in</span> <span class="title">different</span> <span class="title">module</span>
+                <span class="title">for</span> <span class="title">brick</span> <span class="title">in</span> <span class="title">SERVICE_BRICKS</span>.<span class="title">itervalues</span>():
+                    <span class="title">if</span> <span class="title">ev_cls</span> <span class="title">in</span> <span class="title">brick</span>.<span class="title">_EVENTS</span>:
+                        <span class="title">brick</span>.<span class="title">register_observer</span>(<span class="title">ev_cls</span>, <span class="title">i</span>.<span class="title">name</span>,
+                                                <span class="title">c</span>.<span class="title">dispatchers</span>)</code></pre>
+<p>这里有一个技巧，其实c.ev_source如果是的module那么就是ofp_event,而OFPHandler类的名字正好就是&#39;ofp_event&#39;（在下文中会看到其实就是OpenFlowController）,所以这里的brick就是OFPHandler，然后将将每种ev_cls的类型和app名字注册到该类中，其实本质上就是OFPHandler作为了一个消息源。这个函数非常重要，将每个app的handler与消息源OFPHandler建立了联系</p>
+<p>还是没将其与系统消息路由挂起来啊！接着往下看</p>
+<p>在main函数中ryu会将所有app都启动，启动后就进入_event_loop循环<br>    def _event_loop(self):<br>        while self.is_active or not self.events.empty():<br>            ev, state = self.events.get()<br>            if ev == self._event_stop:<br>                continue<br>            handlers = self.get_handlers(ev, state)<br>            for handler in handlers:<br>                handler(ev)。</p>
+<p>其中一个特殊的app是opf_handler app，其重写了start函数，其实调用start后就是启动OpenFlowController类，OpenFlowController启动后，ryu开始监听来自交换机的新连接，当有一个新连接时，就调用datapath_connection_factory函数创建一个新的datapath对象，对象中保存着对端交换机的通信socket和address。如果交换机发来新的消息，该datapath对象在_recv_loop方法中就会获取该消息，</p>
+<pre><code>def _recv_loop(self):
+    buf = bytearray()
+    required_len = ofproto_common.OFP_HEADER_SIZE
+
+    count = <span class="number">0</span>
+    <span class="keyword">while</span> self.is_active:
+        ret = self.<span class="keyword">socket</span>.<span class="keyword">recv</span>(required_len)
+        <span class="keyword">if</span> len(ret) == <span class="number">0</span>:
+            self.is_active = False
+            <span class="keyword">break</span>
+        buf += ret
+        <span class="keyword">while</span> len(buf) &gt;= required_len:
+            (version, msg_type, msg_len, xid) = ofproto_parser.header(buf)
+            required_len = msg_len
+            <span class="keyword">if</span> len(buf) &lt; required_len:
+                <span class="keyword">break</span>
+
+            msg = ofproto_parser.msg(self,
+                                     version, msg_type, msg_len, xid, buf)
+            <span class="comment"># LOG.debug('queue msg %s cls %s', msg, msg.__class__)</span>
+            <span class="keyword">if</span> msg:
+                ev = ofp_event.ofp_msg_to_ev(msg)
+<span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span>我们关注这里 开始<span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span>
+                self.ofp_brick.send_event_to_observers(ev, self.<span class="keyword">state</span>)
+<span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span>我们关注这里 结束<span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span><span class="variable">**</span>
+                dispatchers = lambda <span class="keyword">x</span>: <span class="keyword">x</span>.callers[ev.__class_<span class="number">_</span>].dispatchers
+                handlers = [handler <span class="keyword">for</span> handler in
+                            self.ofp_brick.get_handlers(ev) <span class="keyword">if</span>
+                            self.<span class="keyword">state</span> in dispatchers(handler)]
+                <span class="keyword">for</span> handler in handlers:
+                    handler(ev)
+
+            buf = buf[required_len:]
+            required_len = ofproto_common.OFP_HEADER_SIZE
+
+            <span class="comment"># We need to schedule other greenlets. Otherwise, ryu</span>
+            <span class="comment"># can't accept new switches or handle the existing</span>
+            <span class="comment"># switches. The limit is arbitrary. We need the better</span>
+            <span class="comment"># approach in the future.</span>
+            count += <span class="number">1</span>
+            <span class="keyword">if</span> count &gt; <span class="number">2048</span>:
+                count = <span class="number">0</span>
+                hub.<span class="keyword">sleep</span>(<span class="number">0</span>)</code></pre>
+<p>首先通过lambda表达式定义了一个函数dispatchers，该函数获取handler的callers属性中ev事件的dispatchers。</p>
+<p>接着使用生成器，首先opf_brick定义如下：</p>
+<pre><code> <span class="transposed_variable">self.</span>ofp_brick = <span class="transposed_variable">ryu.</span><span class="transposed_variable">base.</span><span class="transposed_variable">app_manager.</span>lookup_service_brick(<span class="string">'ofp_event'</span>)</code></pre>
+<p>还记得我们上边提到的SERVICE_BRICK么，lookup_service_brick(&#39;ofp_event&#39;)函数</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">lookup_service_brick</span><span class="params">(name)</span>:</span>
+    <span class="keyword">return</span> SERVICE_BRICKS.get(name)</code></pre>
+<p>ofp_brick就是ofp_hander对象，然后调用send_event_to_observers函数，将事件发送到关心该事件和该状态（由dispachers判断）的类中。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">send_event_to_observers</span><span class="params">(self, ev, state=None)</span>:</span>
+    <span class="string">"""
+    Send the specified event to all observers of this RyuApp.
+    """</span>
+
+    <span class="keyword">for</span> observer <span class="keyword">in</span> self.get_observers(ev, state):
+        self.send_event(observer, ev, state)</code></pre>
+<p>这里就用到了上文中提到的通过_update_brick函数填充的ovservers，然后通过send_event函数发送到每个ovserver的app的event队列中，然后每个app在其_event_loop中就可以获取该事件了！</p>
+
+      
+    </div>
+    <footer>
+      
+        
+  
+  <div class="categories">
+    <a href="/categories/Ryu/">Ryu</a>
+  </div>
+
+        
+  
+  <div class="tags">
+    <a href="/tags/Ryu/">Ryu</a>, <a href="/tags/Controller/">Controller</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+<!-- Duoshuo Comment BEGIN -->
+	<div class="ds-thread"></div>
+<script type="text/javascript">
+var duoshuoQuery = {short_name:"weiwang1206"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = 'http://static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		|| document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+	</script>
+<!-- Duoshuo Comment END -->
+</section>
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:weiwang1206.github.io/">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/categories/Network/">Network</a><small>2</small></li>
+  
+    <li><a href="/categories/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/categories/Others/">Others</a><small>1</small></li>
+  
+    <li><a href="/categories/Photo/">Photo</a><small>2</small></li>
+  
+    <li><a href="/categories/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/categories/Research/">Research</a><small>1</small></li>
+  
+    <li><a href="/categories/Ryu/">Ryu</a><small>10</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Controller/">Controller</a><small>16</small></li>
+  
+    <li><a href="/tags/DataCenter Network/">DataCenter Network</a><small>1</small></li>
+  
+    <li><a href="/tags/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/tags/Flow Schedule/">Flow Schedule</a><small>1</small></li>
+  
+    <li><a href="/tags/Hexo/">Hexo</a><small>1</small></li>
+  
+    <li><a href="/tags/Network/">Network</a><small>4</small></li>
+  
+    <li><a href="/tags/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/tags/Photo/">Photo</a><small>1</small></li>
+  
+    <li><a href="/tags/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/tags/Ryu/">Ryu</a><small>10</small></li>
+  
+    <li><a href="/tags/Switch/">Switch</a><small>1</small></li>
+  
+    <li><a href="/tags/github/">github</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2014 Wei Wang
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,465 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>归档：2014/11 | Wei's Blog</title>
+  <meta name="author" content="Wei Wang">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  
+  <meta property="og:site_name" content="Wei's Blog"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Wei's Blog" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fee42232f9a9cfb4d15d91b1d836dbc7e' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'true']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Wei's Blog</a></h1>
+  <h2><a href="/">Build my new life</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">首页</a></li>
+    
+      <li><a href="/archives">归档</a></li>
+    
+      <li><a href="/about">关于</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper">
+<h2 class="archive-title">2014/11</h2>
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-11-27T14:21:10.000Z"><a href="/2014/11/27/ryu-source-analysis-1/">11月 27 2014</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2014/11/27/ryu-source-analysis-1/">Ryu代码解析（一）</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>RYU main函数</h2>
+<p>Ryu的main函数位于cmd\manager.py文件中，main函数如下：</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">main</span><span class="params">(args=None, prog=None)</span>:</span>
+    <span class="keyword">try</span>:
+        CONF(args=args, prog=prog,
+             project=<span class="string">'ryu'</span>, version=<span class="string">'ryu-manager %s'</span> % version,
+             default_config_files=[<span class="string">'/usr/local/etc/ryu/ryu.conf'</span>])
+    <span class="keyword">except</span> cfg.ConfigFilesNotFoundError:
+        CONF(args=args, prog=prog,
+             project=<span class="string">'ryu'</span>, version=<span class="string">'ryu-manager %s'</span> % version)
+    log.init_log()
+    <span class="keyword">if</span> CONF.pid_file:
+        <span class="keyword">import</span> os
+        <span class="keyword">with</span> open(CONF.pid_file, <span class="string">'w'</span>) <span class="keyword">as</span> pid_file:
+            pid_file.write(str(os.getpid()))
+    app_lists = CONF.app_lists + CONF.app //从用户命令行获取的app列表
+    <span class="comment"># keep old behaivor, run ofp if no application is specified.</span>
+    <span class="keyword">if</span> <span class="keyword">not</span> app_lists:
+        app_lists = [<span class="string">'ryu.controller.ofp_handler'</span>] //添加默认的应用
+    app_mgr = AppManager.get_instance() //获取appManager实例，是单体类
+    app_mgr.load_apps(app_lists) //加载所有app
+    contexts = app_mgr.create_contexts() //加载context
+    services = []
+    services.extend(app_mgr.instantiate_apps(**contexts)) //以context作为参数，实例化app
+    webapp = wsgi.start_service(app_mgr)
+    <span class="keyword">if</span> webapp:
+        thr = hub.spawn(webapp)
+        services.append(thr)
+    <span class="keyword">try</span>:
+        hub.joinall(services)
+    <span class="keyword">finally</span>:
+        app_mgr.close()</code></pre>
+<p>
+      
+    </div>
+    <footer>
+      
+        
+          <div class="alignleft">
+            <a href="/2014/11/27/ryu-source-analysis-1/#more" class="more-link">Read More</a>
+          </div>
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-11-26T14:21:38.000Z"><a href="/2014/11/26/RyuDoc4/">11月 26 2014</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2014/11/26/RyuDoc4/">Ryu文档-2-3-Ryu组件</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h1>2.3 Ryu应用的API</h1>
+<h2>2.3.1 Ryu应用的编程模型</h2>
+<p>ryu应用是单线程的实体，应用之间通过消息彼此通信。</p>
+<p>ryu应用之间互相发送异步的消息。ryu的OpenFlow控制器不属于ryu应用，但也是产生消息的源头。虽然ryu的消息可以包含任意的python objects，但是并不推荐在ryu应用之间传递较大的实体。<br>
+      
+    </div>
+    <footer>
+      
+        
+          <div class="alignleft">
+            <a href="/2014/11/26/RyuDoc4/#more" class="more-link">Read More</a>
+          </div>
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-11-26T13:43:19.000Z"><a href="/2014/11/26/python-setdefault/">11月 26 2014</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2014/11/26/python-setdefault/">python-setdefault</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>python 字典的setdefault</p>
+<p>这个函数很好用<br>当我们向字典添加元素时，可能会遇到如果key存在和不存在时，进行的赋值不一样。我过去的做法时</p>
+<pre><code><span class="title">d</span> = dict()
+<span class="title">a</span>='key'
+<span class="title">if</span> a <span class="keyword">in</span> d.keys():
+    pass
+<span class="title">else</span>:
+    d[a] = <span class="number">1</span></code></pre>
+<p>现在一行搞定</p>
+<pre><code><span class="attribute">d.setdefault(a,1)</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-11-26T13:24:06.000Z"><a href="/2014/11/26/python-inspect/">11月 26 2014</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2014/11/26/python-inspect/">python-inspect模块</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>python inspect模块</p>
+<p>今天看RYU源码时，发现一个inspect模块，RYU使用了该模块的getmembers函数来获取ryu app的app类。</p>
+<p>函数原型是 inspect.getmembers(object[, predicate])</p>
+<p>功能： 从一个Object中获取符合predicate的元素的list，元素的形式是（name，value）<br>predicate可以是ismodule(), isclass(), ismethod(), isfunction(), isgeneratorfunction(),<br>isgenerator(), istraceback(), isframe(), iscode(), isbuiltin(),isroutine()，这些验证函数。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+          <div class="alignleft">
+            <a href="/2014/11/26/python-inspect/#more" class="more-link">Read More</a>
+          </div>
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-11-08T14:10:09.000Z"><a href="/2014/11/08/RyuDoc3/">11月 8 2014</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2014/11/08/RyuDoc3/">Ryu文档-2-2-Ryu组件</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>2.2 Ryu组件</h2>
+<p>
+      
+    </div>
+    <footer>
+      
+        
+          <div class="alignleft">
+            <a href="/2014/11/08/RyuDoc3/#more" class="more-link">Read More</a>
+          </div>
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-11-08T12:04:42.000Z"><a href="/2014/11/08/RyuDoc2/">11月 8 2014</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2014/11/08/RyuDoc2/">Ryu文档-2-1-第一个Ryu应用</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>2.1 第一个Ryu应用</h2>
+<p>如果你想用自己的方式来管理网络设备，比如路由器、交换机等，你可以自己来编写一个Ryu的应用程序来实现你的想法。你的应用程序可以告诉Ryu来如何管理这些设备，然后Ryu通过OpenFlow协议来管理设备。编写Ryu应用程序非常简单，直接通过Python脚本就可以实现了。接下来我们就看看如果写一个简单的Ryu应用。<br>
+      
+    </div>
+    <footer>
+      
+        
+          <div class="alignleft">
+            <a href="/2014/11/08/RyuDoc2/#more" class="more-link">Read More</a>
+          </div>
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-11-05T15:39:29.000Z"><a href="/2014/11/05/RyuDoc1/">11月 5 2014</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2014/11/05/RyuDoc1/">Ryu文档-1-开始</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>1.1 什么是Ryu</h2>
+<p>Ryu是一套基于组件的软件定义网络的框架。</p>
+<p>Ryu提供了一套软件组件和高效的API，使网络开发者在开发网络管理控制应用时更加方便快捷。Ryu支持各种南向接口来控制网络设备，如OpenFlow，Netconf，OF-config等。Ryu支持OpenFlow 1.0，1.2，1.3，1.4版本和Nicira扩展。</p>
+<p>Ryu所有源代码都是开源的，遵循 Apache 2.0 license。Ryu完全有Python编写。<br>
+      
+    </div>
+    <footer>
+      
+        
+          <div class="alignleft">
+            <a href="/2014/11/05/RyuDoc1/#more" class="more-link">Read More</a>
+          </div>
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+  
+
+  <nav id="pagination">
+  
+  
+  <div class="clearfix"></div>
+</nav>
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:weiwang1206.github.io/">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/categories/Network/">Network</a><small>2</small></li>
+  
+    <li><a href="/categories/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/categories/Others/">Others</a><small>1</small></li>
+  
+    <li><a href="/categories/Photo/">Photo</a><small>2</small></li>
+  
+    <li><a href="/categories/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/categories/Research/">Research</a><small>1</small></li>
+  
+    <li><a href="/categories/Ryu/">Ryu</a><small>10</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Controller/">Controller</a><small>16</small></li>
+  
+    <li><a href="/tags/DataCenter Network/">DataCenter Network</a><small>1</small></li>
+  
+    <li><a href="/tags/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/tags/Flow Schedule/">Flow Schedule</a><small>1</small></li>
+  
+    <li><a href="/tags/Hexo/">Hexo</a><small>1</small></li>
+  
+    <li><a href="/tags/Network/">Network</a><small>4</small></li>
+  
+    <li><a href="/tags/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/tags/Photo/">Photo</a><small>1</small></li>
+  
+    <li><a href="/tags/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/tags/Ryu/">Ryu</a><small>10</small></li>
+  
+    <li><a href="/tags/Switch/">Switch</a><small>1</small></li>
+  
+    <li><a href="/tags/github/">github</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2014 Wei Wang
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

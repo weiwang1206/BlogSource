@@ -1,0 +1,387 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>归档：2014/12 | Wei's Blog</title>
+  <meta name="author" content="Wei Wang">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  
+  <meta property="og:site_name" content="Wei's Blog"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Wei's Blog" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fee42232f9a9cfb4d15d91b1d836dbc7e' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'true']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Wei's Blog</a></h1>
+  <h2><a href="/">Build my new life</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">首页</a></li>
+    
+      <li><a href="/archives">归档</a></li>
+    
+      <li><a href="/about">关于</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper">
+<h2 class="archive-title">2014/12</h2>
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-12-13T15:13:46.000Z"><a href="/2014/12/13/ryu-source-analysis-6/">12月 13 2014</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2014/12/13/ryu-source-analysis-6/">Ryu代码解析（六）--未完待续</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>Ryu流程图</h2>
+<p>看Ryu代码有一段时间了，<a href="http://geekwei.com/categories/Ryu/" target="_blank">Ryu控制器系列博客</a>前五部分基本已经把Ryu比较核心的几部分梳理清楚了，这才支持我可以总结下Ryu的总体流程图，今天花2个小时画完了这幅图，如下，目前还是比较粗略的，希望能给一起学习的朋友一些帮助。该图仅代表我当前对于Ryu的理解，也希望读者补充指正，博主也会随着对于代码理解的加深扩展修改该图。</p>
+<p><img src="/img/ryusourceflowchart.jpg" alt="Ryu Flow Chart"></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-12-09T13:17:36.000Z"><a href="/2014/12/09/ryu-source-analysis-5/">12月 9 2014</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2014/12/09/ryu-source-analysis-5/">Ryu代码解析（五）</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>OpenFlowController类</h2>
+<p>该类位于ryu\controller\controller.py</p>
+<p>OpenFlowController类非常简单，它其实是作为OFPHandler类的一个线程存在的，而不是一个独立app。该类也没有OF协议相关的处理函数，那这个类究竟做什么呢？其实他的工作很简单，就是在著名的6633端口监听来自交换机的连接，并且建立与交换机之间的连接，并且在控制层面创建于其对应的dp类，连接建立后其余的工作就交给OFPHander类处理交换机发来的包了（从Hello包开始）。我们来详细看一下这个类的组成。<br>
+      
+    </div>
+    <footer>
+      
+        
+          <div class="alignleft">
+            <a href="/2014/12/09/ryu-source-analysis-5/#more" class="more-link">Read More</a>
+          </div>
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-12-04T11:38:14.000Z"><a href="/2014/12/04/ryu-source-analysis-4/">12月 4 2014</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2014/12/04/ryu-source-analysis-4/">Ryu代码解析（四）</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>Ryu OFPHandler类</h2>
+<pre><code><span class="class"><span class="keyword">class</span> <span class="title">OFPHandler</span><span class="params">(ryu.base.app_manager.RyuApp)</span>:</span></code></pre>
+<p>OFPHandler类也是RyuApp的子类，但它是一个特殊的app，负责处理OF协议的相关的事件，同时将事件发送给不同的app。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, *args, **kwargs)</span>:</span>
+    super(OFPHandler, self).__init__(*args, **kwargs)
+    //这里将OFPHandler类的名字定义为ofp_event，后面会用到
+    self.name = <span class="string">'ofp_event'</span> </code></pre>
+<p>
+      
+    </div>
+    <footer>
+      
+        
+          <div class="alignleft">
+            <a href="/2014/12/04/ryu-source-analysis-4/#more" class="more-link">Read More</a>
+          </div>
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-12-02T13:35:13.000Z"><a href="/2014/12/02/ryu-source-analysis-3/">12月 2 2014</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2014/12/02/ryu-source-analysis-3/">Ryu代码解析（三）</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>RyuApp基类</h2>
+<p><strong>_CONTEXTS</strong></p>
+<p>该变量是RyuApp基类中定义的上下文字典，app子类来填充这个变量。该变量用来说明子类想要使用的上下文模块。但是这个上下文模块的初始化是由AppManager来做的，而且相同的上下文模块对象在不同的app子类之间是共享的。例如：</p>
+<pre><code> _CONTEXTS = {
+        <span class="string">'network'</span>: network.Network
+    }
+
+    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, *args, *kwargs)</span>:</span>
+        // 这里的kwargs就是传进来的共享的上下文，然后获取其中的‘network’来初始化每个子类中的关心的上下文变量
+        self.network = kwargs[<span class="string">'network'</span>] </code></pre>
+<p>
+      
+    </div>
+    <footer>
+      
+        
+          <div class="alignleft">
+            <a href="/2014/12/02/ryu-source-analysis-3/#more" class="more-link">Read More</a>
+          </div>
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-11-30T16:20:33.000Z"><a href="/2014/12/01/ryu-source-analysis-2md/">12月 1 2014</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2014/12/01/ryu-source-analysis-2md/">Ryu代码解析（二）</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>Ryu事件处理函数的挂接方式分析</h2>
+<p>Ryu支持用户自定义事件处理函数，当该事件发生时，用户定义的处理函数会被自动的调用。那么这个机制具体是如何实现的呢？本篇博客就针对该问题，做一个简单的梳理，才疏学浅，欢迎指正！</p>
+<p>首先来看RYU文档中的那个第一个APP程序：</p>
+<pre><code>from ryu.base import app_manager
+from ryu.controller import ofp_event
+from ryu.controller.handler import MAIN_DISPATCHER
+from ryu.controller.handler import set_ev_cls
+
+<span class="class"><span class="keyword">class</span> <span class="title">L2Switch</span>(<span class="title">app_manager</span>.<span class="title">RyuApp</span>):
+    <span class="title">def</span> <span class="title">__init__</span>(<span class="title">self</span>, *<span class="title">args</span>, **<span class="title">kwargs</span>):
+        <span class="title">super</span>(<span class="title">L2Switch</span>, <span class="title">self</span>).<span class="title">__init__</span>(*<span class="title">args</span>, **<span class="title">kwargs</span>)
+
+    @<span class="title">set_ev_cls</span>(<span class="title">ofp_event</span>.<span class="title">EventOFPPacketIn</span>, <span class="title">MAIN_DISPATCHER</span>)
+    <span class="title">def</span> <span class="title">packet_in_handler</span>(<span class="title">self</span>, <span class="title">ev</span>):
+        <span class="title">msg</span> = <span class="title">ev</span>.<span class="title">msg</span>
+        <span class="title">dp</span> = <span class="title">msg</span>.<span class="title">datapath</span>
+        <span class="title">ofp</span> = <span class="title">dp</span>.<span class="title">ofproto</span>
+        <span class="title">ofp_parser</span> = <span class="title">dp</span>.<span class="title">ofproto_parser</span>
+
+        <span class="title">actions</span> = [<span class="title">ofp_parser</span>.<span class="title">OFPActionOutput</span>(<span class="title">ofp</span>.<span class="title">OFPP_FLOOD</span>)]
+        <span class="title">out</span> = <span class="title">ofp_parser</span>.<span class="title">OFPPacketOut</span>(
+        <span class="title">datapath</span>=<span class="title">dp</span>, <span class="title">buffer_id</span>=<span class="title">msg</span>.<span class="title">buffer_id</span>, <span class="title">in_port</span>=<span class="title">msg</span>.<span class="title">in_port</span>,
+        <span class="title">actions</span>=<span class="title">actions</span>)
+        <span class="title">dp</span>.<span class="title">send_msg</span>(<span class="title">out</span>)</code></pre>
+<p>
+      
+    </div>
+    <footer>
+      
+        
+          <div class="alignleft">
+            <a href="/2014/12/01/ryu-source-analysis-2md/#more" class="more-link">Read More</a>
+          </div>
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+  
+
+  <nav id="pagination">
+  
+  
+  <div class="clearfix"></div>
+</nav>
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:weiwang1206.github.io/">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/categories/Network/">Network</a><small>2</small></li>
+  
+    <li><a href="/categories/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/categories/Others/">Others</a><small>1</small></li>
+  
+    <li><a href="/categories/Photo/">Photo</a><small>2</small></li>
+  
+    <li><a href="/categories/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/categories/Research/">Research</a><small>1</small></li>
+  
+    <li><a href="/categories/Ryu/">Ryu</a><small>10</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Controller/">Controller</a><small>16</small></li>
+  
+    <li><a href="/tags/DataCenter Network/">DataCenter Network</a><small>1</small></li>
+  
+    <li><a href="/tags/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/tags/Flow Schedule/">Flow Schedule</a><small>1</small></li>
+  
+    <li><a href="/tags/Hexo/">Hexo</a><small>1</small></li>
+  
+    <li><a href="/tags/Network/">Network</a><small>4</small></li>
+  
+    <li><a href="/tags/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/tags/Photo/">Photo</a><small>1</small></li>
+  
+    <li><a href="/tags/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/tags/Ryu/">Ryu</a><small>10</small></li>
+  
+    <li><a href="/tags/Switch/">Switch</a><small>1</small></li>
+  
+    <li><a href="/tags/github/">github</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2014 Wei Wang
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

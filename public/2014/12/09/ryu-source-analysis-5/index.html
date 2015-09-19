@@ -1,0 +1,439 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Ryu代码解析（五） | Wei's Blog</title>
+  <meta name="author" content="Wei Wang">
+  
+  <meta name="description" content="OpenFlowController类
+该类位于ryu\controller\controller.py
+OpenFlowController类非常简单，它其实是作为OFPHandler类的一个线程存在的，而不是一个独立app。该类也没有OF协议相关的处理函数，那这个类究竟做什么呢？其实他的工作很简单，就是在著名的6633端口监听来自交换机的连接，并且建立与交换机之间的连接，并且在控制层面创建于其对应的dp类，连接建立后其余的工作就交给OFPHander类处理交换机发来的包了（从Hello包开始）。我们来详细看一下这个类的组成。">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Ryu代码解析（五）"/>
+  <meta property="og:site_name" content="Wei's Blog"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Wei's Blog" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fee42232f9a9cfb4d15d91b1d836dbc7e' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'true']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Wei's Blog</a></h1>
+  <h2><a href="/">Build my new life</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">首页</a></li>
+    
+      <li><a href="/archives">归档</a></li>
+    
+      <li><a href="/about">关于</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-12-09T13:17:36.000Z"><a href="/2014/12/09/ryu-source-analysis-5/">12月 9 2014</a></time>
+      
+      
+  
+    <h1 class="title">Ryu代码解析（五）</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>OpenFlowController类</h2>
+<p>该类位于ryu\controller\controller.py</p>
+<p>OpenFlowController类非常简单，它其实是作为OFPHandler类的一个线程存在的，而不是一个独立app。该类也没有OF协议相关的处理函数，那这个类究竟做什么呢？其实他的工作很简单，就是在著名的6633端口监听来自交换机的连接，并且建立与交换机之间的连接，并且在控制层面创建于其对应的dp类，连接建立后其余的工作就交给OFPHander类处理交换机发来的包了（从Hello包开始）。我们来详细看一下这个类的组成。<br><a id="more"></a><br><strong>__call__函数</strong>：这个函数是python的内置函数，该函数在类对象初始化时被自动的调用，从<a href="http://geekwei.com/2014/12/04/ryu-source-analysis-4/" target="_blank">上一篇博客中</a>我们知道，OFPHandle在start函数中新建了OpenFlowController对象，此时就调用了<strong>call</strong>函数，该函数中调用server_loop函数。</p>
+<pre><code> <span class="function"><span class="keyword">def</span> <span class="title">__call__</span><span class="params">(self)</span>:</span>
+    <span class="comment"># LOG.debug('call')</span>
+    self.server_loop()</code></pre>
+<p><strong>server_loop函数</strong>：该函数新建一个监听server，然后开始监听，就这么简单。只不过ryu使用了一个叫做<a href="http://www.gevent.org/" target="_blank">Gevent</a>的轻量级高并发框架。博主不太了解该框架。我们只关注其功能，可以看到在函数中第一步就是新建一个StreamServer，在其参数中我们只关注datapath_connection_factory这个参数，其实他是一个函数句柄，当一个server成功接收一个来自交换机的连接时就调用该函数，后面会讲该函数。新建server之后，调用serve_forever，从函数名可知就是启动服务器开始服务。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">server_loop</span><span class="params">(self)</span>:</span>
+    <span class="keyword">if</span> CONF.ctl_privkey <span class="keyword">is</span> <span class="keyword">not</span> <span class="built_in">None</span> <span class="keyword">and</span> CONF.ctl_cert <span class="keyword">is</span> <span class="keyword">not</span> <span class="built_in">None</span>:
+        <span class="keyword">if</span> CONF.ca_certs <span class="keyword">is</span> <span class="keyword">not</span> <span class="built_in">None</span>:
+            server = StreamServer((CONF.ofp_listen_host,
+                                   CONF.ofp_ssl_listen_port),
+                                  datapath_connection_factory,
+                                  keyfile=CONF.ctl_privkey,
+                                  certfile=CONF.ctl_cert,
+                                  cert_reqs=ssl.CERT_REQUIRED,
+                                  ca_certs=CONF.ca_certs,
+                                  ssl_version=ssl.PROTOCOL_TLSv1)
+        <span class="keyword">else</span>:
+            server = StreamServer((CONF.ofp_listen_host,
+                                   CONF.ofp_ssl_listen_port),
+                                  datapath_connection_factory,
+                                  keyfile=CONF.ctl_privkey,
+                                  certfile=CONF.ctl_cert,
+                                  ssl_version=ssl.PROTOCOL_TLSv1)
+    <span class="keyword">else</span>:
+        server = StreamServer((CONF.ofp_listen_host,
+                               CONF.ofp_tcp_listen_port),
+                              datapath_connection_factory)
+
+    <span class="comment"># LOG.debug('loop')</span>
+    server.serve_forever()</code></pre>
+<p>OpenFlowController类就以上两个主要的函数，功能就是启动监听。</p>
+<p>接下来我们看一下上面提到的当成功建立与一台交换机的连接之后调用的函数。</p>
+<p><strong>datapath_connection_factory函数</strong>： 该函数的参数是socket和address，是由streamserver建立与交换机连接之后传入的交换机的socket和address。然后就是一个麻烦的python特有语法 with … as …，是try…final的简易写法。在这里的流程是就是新建一个datapath(socket,address)，赋值给datapath，然后如果创建成功就执性try中的语句，如果创建都没成功就关闭它。执行try中的语句时，如果try中的语句出错就执行except中的语句，最后再执行contextlib.closing函数关闭新建的datapath。我们假设创建datapath是成功的，那么就执行datapath的serve函数(后面讲该函数)，有关datapath类的详细信息后面会介绍。可见当OpenFlowController的server每当成功连接一个交换机后，就会创建一个于其对应的datapath，以后与交换机的通信就通过该datapath。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">datapath_connection_factory</span><span class="params">(socket, address)</span>:</span>
+    LOG.debug(<span class="string">'connected socket:%s address:%s'</span>, socket, address)
+    <span class="keyword">with</span> contextlib.closing(Datapath(socket, address)) <span class="keyword">as</span> datapath:
+        <span class="keyword">try</span>:
+            datapath.serve()
+        <span class="keyword">except</span>:
+            <span class="comment"># Something went wrong.</span>
+            <span class="comment"># Especially malicious switch can send malformed packet,</span>
+            <span class="comment"># the parser raise exception.</span>
+            <span class="comment"># Can we do anything more graceful?</span>
+            <span class="keyword">if</span> datapath.id <span class="keyword">is</span> <span class="built_in">None</span>:
+                dpid_str = <span class="string">"%s"</span> % datapath.id
+            <span class="keyword">else</span>:
+                dpid_str = dpid_to_str(datapath.id)
+            LOG.error(<span class="string">"Error in the datapath %s from %s"</span>, dpid_str, address)
+            <span class="keyword">raise</span></code></pre>
+<h2>datapath类</h2>
+<p>datapath类对象是与连接到控制器的交换机一一对应的，保存交换机的信息，并且接收和发送信息给交换机。我们来看一下这个类。</p>
+<p><strong>__init__函数</strong>：初始化函数</p>
+<pre><code>def __init__(<span class="keyword">self</span>, socket, address):
+    super(Datapath, <span class="keyword">self</span>).__init__()
+
+    <span class="keyword">self</span>.socket = socket <span class="comment">//与交换机通信的套接字</span>
+    <span class="keyword">self</span>.socket.setsockopt(IPPROTO_TCP, TCP_NODELAY, <span class="number">1</span>)
+    <span class="keyword">self</span>.address = address <span class="comment">//IP地址</span>
+    <span class="keyword">self</span>.is_active = <span class="keyword">True</span> <span class="comment">//交换机状态：设置为活跃</span>
+
+    <span class="comment"># The limit is arbitrary. We need to limit queue size to</span>
+    <span class="comment"># prevent it from eating memory up</span>
+    <span class="keyword">self</span>.send_q = hub.Queue(<span class="number">16</span>) <span class="comment">//发送队列，最大16个包</span>
+
+    <span class="keyword">self</span>.xid = random.randint(<span class="number">0</span>, <span class="keyword">self</span>.ofproto.MAX_XID) <span class="comment">//xid相当于消息的序列号，每发送一个消息曾 1</span>
+    <span class="keyword">self</span>.id = None  <span class="comment"># datapath_id is unknown yet //id在之后的negotiation阶段获得</span>
+    <span class="keyword">self</span>.ports = None <span class="comment">//现在还没有端口</span>
+    <span class="keyword">self</span>.flow_format = ofproto_v1_0.NXFF_OPENFLOW10
+    <span class="keyword">self</span>.ofp_brick = ryu.base.app_manager.lookup_service_brick(<span class="string">'ofp_event'</span>) <span class="comment">//获取opf处理类，就是那个ofp_handler类</span>
+    <span class="keyword">self</span>.set_state(handler.HANDSHAKE_DISPATCHER) <span class="comment">//将状态设置为握手阶段</span></code></pre>
+<p><strong>close函数</strong>：关闭datapath，将状态设置为.DEAD_DISPATCHE</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">close</span><span class="params">(self)</span>:</span>
+    self.set_state(handler.DEAD_DISPATCHER)</code></pre>
+<p><strong>set_state函数</strong>：设置交换机状态，生成状态改变事件，并通过send_event_to_observers函数（<a href="http://geekwei.com/2014/12/02/ryu-source-analysis-3/" target="_blank">之前有讲该函数</a>）发送给关心该事件的类。</p>
+<pre><code> <span class="function"><span class="keyword">def</span> <span class="title">set_state</span><span class="params">(self, state)</span>:</span>
+    self.state = state
+    ev = ofp_event.EventOFPStateChange(self) //生成状态改变事件
+    ev.state = state //将当前状态保存在事件中
+    self.ofp_brick.send_event_to_observers(ev, state) //发送给关心该事件的类</code></pre>
+<p><strong>_recv_loop函数</strong>：这是datapath中的主线程，负责接收来自交换机的消息。详细请看代码注释。</p>
+<pre><code>def _recv_loop(<span class="keyword">self</span>):
+    buf = bytearray()
+    required_len = ofproto_common<span class="variable">.OFP_HEADER_SIZE</span>
+
+    count = <span class="number">0</span>
+    <span class="keyword">while</span> <span class="keyword">self</span><span class="variable">.is_active</span>:
+        ret = <span class="keyword">self</span><span class="variable">.socket</span><span class="variable">.recv</span>(required_len) <span class="comment">//阻塞的接收来自交换机的包</span>
+        <span class="keyword">if</span> len(ret) == <span class="number">0</span>: <span class="comment">//如果交换机断开了连接，recv函数会返回0</span>
+            <span class="keyword">self</span><span class="variable">.is_active</span> = False <span class="comment">//将交换机状态设置为false，那么主线程也就结束了</span>
+            <span class="keyword">break</span>
+        buf += ret
+        <span class="keyword">while</span> len(buf) &gt;= required_len: 
+        <span class="comment">//while函数开始这里很有技巧，功能就是为了收到一个完整的包含包头和包体的消息</span>
+        <span class="comment">//当第一次收到消息时，required\_len=OFP\_HEADER\_SIZE,因此在上面的recv函数处设置的</span>
+        <span class="comment">//缓冲区大小也是包头的大小，进入while循环后，执行下面这行函数，获取包头消息，这里我们关注</span>
+        <span class="comment">//的是msg\_len字段，表明该消息的总大小，然后接着把required\_len设置为msg_len，如果我们</span>
+        <span class="comment">//当前的buf中的信息长度不够msg\_len，那么退出循环，继续接受剩余的信息。</span>
+            (version, msg_type, msg_len, xid) = ofproto_parser<span class="variable">.header</span>(buf)
+            required_len = msg_len
+            <span class="keyword">if</span> len(buf) &lt; required_len:
+                <span class="keyword">break</span>
+        <span class="comment">//一旦函数到达这里，表明我们接收到了一个完整的消息，消息保存在buf中</span>
+            msg = ofproto_parser<span class="variable">.msg</span>(<span class="keyword">self</span>,
+                                     version, msg_type, msg_len, xid, buf) <span class="comment">//获取消息体</span>
+            <span class="preprocessor"># LOG.debug('queue msg %s cls %s', msg, msg.__class__)</span>
+            <span class="keyword">if</span> msg: <span class="comment">//消息体不为空</span>
+                ev = ofp_event<span class="variable">.ofp_msg_to_ev</span>(msg) <span class="comment">//获取消息中的事件</span>
+                <span class="comment">//下面这行函数很重要，通过ofp\_brick（该对象其实就是ofp\_handler对象）将事件发送</span>
+                <span class="comment">//关心该事件的app类，这里也体现出ryu文档中说的ofp_handler是将消息进行路由的功能</span>
+                <span class="keyword">self</span><span class="variable">.ofp_brick</span><span class="variable">.send_event_to_observers</span>(ev, <span class="keyword">self</span><span class="variable">.state</span>)
+
+                <span class="comment">//定义一个函数dispatchers，该函数的作用是获取类x中对于事件ev的关心时间阶段</span>
+                dispatchers = lambda x: x<span class="variable">.callers</span>[ev<span class="variable">.__class__</span>]<span class="variable">.dispatchers</span>
+                <span class="comment">//这里才是ofp\_handler app获取处理函数的地方，从ofp\_brick(opf\_handler)中获取</span>
+                <span class="comment">//事件ev的处理函数，并且datapath的当前的状态符合该处理函数定义的dispatchers</span>
+                handlers = [handler <span class="keyword">for</span> handler in
+                            <span class="keyword">self</span><span class="variable">.ofp_brick</span><span class="variable">.get_handlers</span>(ev) <span class="keyword">if</span>
+                            <span class="keyword">self</span><span class="variable">.state</span> in dispatchers(handler)]
+                <span class="keyword">for</span> handler in handlers:
+                    handler(ev) <span class="comment">//调用每个处理函数处理事件</span>
+
+            buf = buf[required_len:] <span class="comment">//从buf中去掉已经处理过的当前消息</span>
+            required_len = ofproto_common<span class="variable">.OFP_HEADER_SIZE</span> <span class="comment">//表明要开始接收新的包了</span>
+
+            <span class="preprocessor"># We need to schedule other greenlets. Otherwise, ryu</span>
+            <span class="preprocessor"># can't accept new switches or handle the existing</span>
+            <span class="preprocessor"># switches. The limit is arbitrary. We need the better</span>
+            <span class="preprocessor"># approach in the future.</span>
+            <span class="comment">//当一个datapath处理了2048个消息后，主动sleep，让出cpu。还要主动休息一会儿？有待提高</span>
+            count += <span class="number">1</span>
+            <span class="keyword">if</span> count &gt; <span class="number">2048</span>:
+                count = <span class="number">0</span>
+                hub<span class="variable">.sleep</span>(<span class="number">0</span>)</code></pre>
+<p><strong>_send_loop函数</strong>：这是datapath另外一个线程，发送线程，将send_q中的消息全部发出去。如果发送失败，首先保存当前消息队列中的消息，然后将send_q设置为空，避免有新的消息加入，然后清空消息队列。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">_send_loop</span><span class="params">(self)</span>:</span>
+    <span class="keyword">try</span>:
+        <span class="keyword">while</span> self.is_active:
+            buf = self.send_q.get()
+            self.socket.sendall(buf)
+    <span class="keyword">finally</span>:
+        q = self.send_q
+        <span class="comment"># first, clear self.send_q to prevent new references.</span>
+        self.send_q = <span class="built_in">None</span>
+        <span class="comment"># there might be threads currently blocking in send_q.put().</span>
+        <span class="comment"># unblock them by draining the queue.</span>
+        <span class="keyword">try</span>:
+            <span class="keyword">while</span> q.get(block=<span class="built_in">False</span>):
+                <span class="keyword">pass</span>
+        <span class="keyword">except</span> hub.QueueEmpty:
+            <span class="keyword">pass</span></code></pre>
+<p><strong>send函数</strong>：发送消息，将消息放在send_q中</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">send</span><span class="params">(self, buf)</span>:</span>
+    <span class="keyword">if</span> self.send_q:
+        self.send_q.put(buf)</code></pre>
+<p><strong>set_xid函数</strong>：给msg设置xid</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">set_xid</span><span class="params">(self, msg)</span>:</span>
+    self.xid += <span class="number">1</span>
+    self.xid &amp;= self.ofproto.MAX_XID
+    msg.set_xid(self.xid)
+    <span class="keyword">return</span> self.xid</code></pre>
+<p><strong>send_msg函数</strong>：发送消息</p>
+<pre><code> <span class="function"><span class="keyword">def</span> <span class="title">send_msg</span><span class="params">(self, msg)</span>:</span>
+    <span class="keyword">assert</span> isinstance(msg, self.ofproto_parser.MsgBase)
+    <span class="keyword">if</span> msg.xid <span class="keyword">is</span> <span class="built_in">None</span>:
+        self.set_xid(msg) //设置xid
+    msg.serialize() //将消息序列化
+    <span class="comment"># LOG.debug('send_msg %s', msg)</span>
+    self.send(msg.buf) //发送消息</code></pre>
+<p><strong>serve函数</strong>：这是新建datapath后，首先执行的主函数，负责启动datapath的主线程（_recv_loop）和副线程(_send_loop)</p>
+<pre><code>def serve(<span class="keyword">self</span>):
+    send_thr = hub<span class="variable">.spawn</span>(<span class="keyword">self</span><span class="variable">._send_loop</span>) <span class="comment">//启动副线程</span>
+
+    <span class="preprocessor"># send hello message immediately</span>
+    hello = <span class="keyword">self</span><span class="variable">.ofproto_parser</span><span class="variable">.OFPHello</span>(<span class="keyword">self</span>)
+    <span class="keyword">self</span><span class="variable">.send_msg</span>(hello) <span class="comment">//建立连接后，控制器直接向交换机发送hello消息</span>
+
+    <span class="keyword">try</span>:
+        <span class="keyword">self</span><span class="variable">._recv_loop</span>() <span class="comment">//执行主线程</span>
+    <span class="keyword">finally</span>:
+        hub<span class="variable">.kill</span>(send_thr)
+        hub<span class="variable">.joinall</span>([send_thr])</code></pre>
+<p>datapath还定义了一些方便发送常用消息的函数，如下，就不具体介绍了。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">send_packet_out</span><span class="params">(self, buffer_id=<span class="number">0xffffffff</span>, in_port=None,
+                    actions=None, data=None)</span>:</span>
+
+<span class="function"><span class="keyword">def</span> <span class="title">send_flow_mod</span><span class="params">(self, rule, cookie, command, idle_timeout, hard_timeout,
+                  priority=None, buffer_id=<span class="number">0xffffffff</span>,
+                  out_port=None, flags=<span class="number">0</span>, actions=None)</span>:</span>
+
+<span class="function"><span class="keyword">def</span> <span class="title">send_flow_del</span><span class="params">(self, rule, cookie, out_port=None)</span>:</span>
+    self.send_flow_mod(rule=rule, cookie=cookie,
+                       command=self.ofproto.OFPFC_DELETE,
+                       idle_timeout=<span class="number">0</span>, hard_timeout=<span class="number">0</span>, priority=<span class="number">0</span>,
+                       out_port=out_port)
+
+<span class="function"><span class="keyword">def</span> <span class="title">send_delete_all_flows</span><span class="params">(self)</span>:</span>
+
+<span class="function"><span class="keyword">def</span> <span class="title">send_barrier</span><span class="params">(self)</span>:</span>
+
+<span class="function"><span class="keyword">def</span> <span class="title">send_nxt_set_flow_format</span><span class="params">(self, flow_format)</span>:</span></code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+  
+  <div class="categories">
+    <a href="/categories/Ryu/">Ryu</a>
+  </div>
+
+        
+  
+  <div class="tags">
+    <a href="/tags/Ryu/">Ryu</a>, <a href="/tags/Controller/">Controller</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+<!-- Duoshuo Comment BEGIN -->
+	<div class="ds-thread"></div>
+<script type="text/javascript">
+var duoshuoQuery = {short_name:"weiwang1206"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = 'http://static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		|| document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+	</script>
+<!-- Duoshuo Comment END -->
+</section>
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:weiwang1206.github.io/">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/categories/Network/">Network</a><small>2</small></li>
+  
+    <li><a href="/categories/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/categories/Others/">Others</a><small>1</small></li>
+  
+    <li><a href="/categories/Photo/">Photo</a><small>2</small></li>
+  
+    <li><a href="/categories/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/categories/Research/">Research</a><small>1</small></li>
+  
+    <li><a href="/categories/Ryu/">Ryu</a><small>10</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Controller/">Controller</a><small>16</small></li>
+  
+    <li><a href="/tags/DataCenter Network/">DataCenter Network</a><small>1</small></li>
+  
+    <li><a href="/tags/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/tags/Flow Schedule/">Flow Schedule</a><small>1</small></li>
+  
+    <li><a href="/tags/Hexo/">Hexo</a><small>1</small></li>
+  
+    <li><a href="/tags/Network/">Network</a><small>4</small></li>
+  
+    <li><a href="/tags/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/tags/Photo/">Photo</a><small>1</small></li>
+  
+    <li><a href="/tags/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/tags/Ryu/">Ryu</a><small>10</small></li>
+  
+    <li><a href="/tags/Switch/">Switch</a><small>1</small></li>
+  
+    <li><a href="/tags/github/">github</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2014 Wei Wang
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

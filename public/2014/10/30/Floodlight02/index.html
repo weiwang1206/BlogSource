@@ -1,0 +1,282 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Floodlight No.2 | Wei's Blog</title>
+  <meta name="author" content="Wei Wang">
+  
+  <meta name="description" content="代码结构
+Floodlight代码总体上分为两部分：floodlight controller和openflow协议。floodlightcontroller部分包含了控制器的核心部件(core)，各个服务模块(module)以及相关工具组件。Openflow部分主要定义了openflow协议标准。Floodlight由各个模块组成，每个模块又可以提供不同的服务。
+控制器核心组件（core）
+Floodlight通过模块的方式来提供控制器的扩展性，core组件负责组件核心框架，包括网络通信，模块接口等，是其他模块的基础。首先，从main函数开始。">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Floodlight No.2"/>
+  <meta property="og:site_name" content="Wei's Blog"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Wei's Blog" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fee42232f9a9cfb4d15d91b1d836dbc7e' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'true']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Wei's Blog</a></h1>
+  <h2><a href="/">Build my new life</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">首页</a></li>
+    
+      <li><a href="/archives">归档</a></li>
+    
+      <li><a href="/about">关于</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-10-30T13:16:47.000Z"><a href="/2014/10/30/Floodlight02/">10月 30 2014</a></time>
+      
+      
+  
+    <h1 class="title">Floodlight No.2</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>代码结构</h2>
+<p>Floodlight代码总体上分为两部分：floodlight controller和openflow协议。floodlightcontroller部分包含了控制器的核心部件(core)，各个服务模块(module)以及相关工具组件。Openflow部分主要定义了openflow协议标准。Floodlight由各个模块组成，每个模块又可以提供不同的服务。</p>
+<h2>控制器核心组件（core）</h2>
+<p>Floodlight通过模块的方式来提供控制器的扩展性，core组件负责组件核心框架，包括网络通信，模块接口等，是其他模块的基础。首先，从main函数开始。<br><a id="more"></a></p>
+<h2>Main函数</h2>
+<pre><code>public static void main(String[] args) throws FloodlightModuleException {
+    // Setup logger
+    System<span class="preprocessor">.setProperty</span>(<span class="string">"org.restlet.engine.loggerFacadeClass"</span>, 
+            <span class="string">"org.restlet.ext.slf4j.Slf4jLoggerFacade"</span>)<span class="comment">;</span>
+
+    CmdLineSettings settings = new CmdLineSettings()<span class="comment">;</span>
+    CmdLineParser parser = new CmdLineParser(settings)<span class="comment">;</span>
+    try {
+        parser<span class="preprocessor">.parseArgument</span>(args)<span class="comment">;</span>
+    } catch (CmdLineException e) {
+        parser<span class="preprocessor">.printUsage</span>(System<span class="preprocessor">.out</span>)<span class="comment">;</span>
+        System<span class="preprocessor">.exit</span>(<span class="number">1</span>)<span class="comment">;</span>
+    }
+
+    // Load modules
+    FloodlightModuleLoader fml = new FloodlightModuleLoader()<span class="comment">;</span>
+    IFloodlightModuleContext moduleContext = fml<span class="preprocessor">.loadModulesFromConfig</span>(settings<span class="preprocessor">.getModuleFile</span>())<span class="comment">;</span>
+    // Run REST server
+    IRestApiService restApi = moduleContext<span class="preprocessor">.getServiceImpl</span>(IRestApiService<span class="preprocessor">.class</span>)<span class="comment">;</span>
+    restApi<span class="preprocessor">.run</span>()<span class="comment">;</span>
+    // Run the main floodlight module
+    IFloodlightProviderService controller =
+            moduleContext<span class="preprocessor">.getServiceImpl</span>(IFloodlightProviderService<span class="preprocessor">.class</span>)<span class="comment">;</span>
+    // This <span class="keyword">call</span> blocks, it has to be the last line <span class="keyword">in</span> the main
+    controller<span class="preprocessor">.run</span>()<span class="comment">;</span>
+}</code></pre>
+<p>在main函数中，首先读取并解析命令行参数。然后从默认配置文件中加载需要加载的模块(fml.loadModulesFromConfig(settings.getModuleFile()))。默认配置文件为config/floodlight.properties，该文件保存着需要加载的模块的类的路径。追踪该函数可以发现，最终调用loadModuleFromList函数,该函数首先调用findAllModules(configMods)函数，该函数建立三个map</p>
+<ul>
+<li>serviceMap -&gt; Maps a service to a module</li>
+<li>moduleServiceMap -&gt; Maps a module to all the services it provides</li>
+<li>moduleNameMap -&gt; Maps the string name to the module</li>
+</ul>
+<p>其次，遍历加载每一个模块及其依赖的模块，如果该模块中提供的service被设置为ignored，则不加载该模块。</p>
+<p>在loadModulesFromList的最后调用parseConfigParameters,initModues和startpuModules函数,进行模块的配置、初始化、和启动。</p>
+<pre><code><span class="function"><span class="title">parseConfigParameters</span><span class="params">(prop)</span>;
+<span class="title">initModules</span><span class="params">(module<span class="variable">Set</span>)</span>;
+<span class="title">startupModules</span><span class="params">(module<span class="variable">Set</span>)</span>;</code></pre>
+<p>InitModules函数加载各个模块的service，并加入floodlightModuleContext中,最后调用每个模块的init函数<br>startpuModules函数调用每个模块的startup函数。</p>
+<p>Main函数，然后启动REST服务器，接收RESTful API调用。最后从moduleContext获取IFloodlightProviderService的实现类，实际上controller类（core/internal/Controller.java）实现了该接口。最后调用run函数启动controller。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+  
+  <div class="categories">
+    <a href="/categories/Floodlight/">Floodlight</a>
+  </div>
+
+        
+  
+  <div class="tags">
+    <a href="/tags/Floodlight/">Floodlight</a>, <a href="/tags/Controller/">Controller</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+<!-- Duoshuo Comment BEGIN -->
+	<div class="ds-thread"></div>
+<script type="text/javascript">
+var duoshuoQuery = {short_name:"weiwang1206"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = 'http://static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		|| document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+	</script>
+<!-- Duoshuo Comment END -->
+</section>
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:weiwang1206.github.io/">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/categories/Network/">Network</a><small>2</small></li>
+  
+    <li><a href="/categories/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/categories/Others/">Others</a><small>1</small></li>
+  
+    <li><a href="/categories/Photo/">Photo</a><small>2</small></li>
+  
+    <li><a href="/categories/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/categories/Research/">Research</a><small>1</small></li>
+  
+    <li><a href="/categories/Ryu/">Ryu</a><small>10</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Controller/">Controller</a><small>16</small></li>
+  
+    <li><a href="/tags/DataCenter Network/">DataCenter Network</a><small>1</small></li>
+  
+    <li><a href="/tags/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/tags/Flow Schedule/">Flow Schedule</a><small>1</small></li>
+  
+    <li><a href="/tags/Hexo/">Hexo</a><small>1</small></li>
+  
+    <li><a href="/tags/Network/">Network</a><small>4</small></li>
+  
+    <li><a href="/tags/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/tags/Photo/">Photo</a><small>1</small></li>
+  
+    <li><a href="/tags/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/tags/Ryu/">Ryu</a><small>10</small></li>
+  
+    <li><a href="/tags/Switch/">Switch</a><small>1</small></li>
+  
+    <li><a href="/tags/github/">github</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2014 Wei Wang
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

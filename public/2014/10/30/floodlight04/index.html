@@ -1,0 +1,372 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Floodlight No.4 | Wei's Blog</title>
+  <meta name="author" content="Wei Wang">
+  
+  <meta name="description" content="Controller (core/internal/Controller.java)(2)
+
+本文主要介绍controller中的run函数，run函数的运行图如上图。">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Floodlight No.4"/>
+  <meta property="og:site_name" content="Wei's Blog"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Wei's Blog" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fee42232f9a9cfb4d15d91b1d836dbc7e' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'true']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Wei's Blog</a></h1>
+  <h2><a href="/">Build my new life</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">首页</a></li>
+    
+      <li><a href="/archives">归档</a></li>
+    
+      <li><a href="/about">关于</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-10-30T14:14:35.000Z"><a href="/2014/10/30/floodlight04/">10月 30 2014</a></time>
+      
+      
+  
+    <h1 class="title">Floodlight No.4</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>Controller (core/internal/Controller.java)(2)</h2>
+<p><img src="/img/floodlight03-controller.png" alt="控制器运行过程"></p>
+<p>本文主要介绍controller中的run函数，run函数的运行图如上图。<br><a id="more"></a><br>    public void run() {<br>        if (log.isDebugEnabled()) {<br>            logListeners();<br>        }<br>        try {<br>           final ServerBootstrap bootstrap = createServerBootStrap(); //新建bootstrap server，用于与交换机之间通信</p>
+<pre><code>        bootstrap<span class="variable">.setOption</span>(<span class="string">"reuseAddr"</span>, <span class="literal">true</span>);
+        bootstrap<span class="variable">.setOption</span>(<span class="string">"child.keepAlive"</span>, <span class="literal">true</span>);
+        bootstrap<span class="variable">.setOption</span>(<span class="string">"child.tcpNoDelay"</span>, <span class="literal">true</span>);
+        bootstrap<span class="variable">.setOption</span>(<span class="string">"child.sendBufferSize"</span>, Controller<span class="variable">.SEND_BUFFER_SIZE</span>);
+
+        ChannelPipelineFactory pfact = 
+                new OpenflowPipelineFactory(<span class="keyword">this</span>, null);  <span class="comment">//新建pipeline，见下详解，这里是重点</span>
+        bootstrap<span class="variable">.setPipelineFactory</span>(pfact); <span class="comment">//设置pipeline</span>
+        InetSocketAddress sa = new InetSocketAddress(openFlowPort);
+        final ChannelGroup cg = new DefaultChannelGroup();
+        cg<span class="variable">.add</span>(bootstrap<span class="variable">.bind</span>(sa)); <span class="comment">//开始监听</span>
+
+        log<span class="variable">.info</span>(<span class="string">"Listening for switch connections on {}"</span>, sa);
+    } <span class="keyword">catch</span> (Exception e) {
+        <span class="keyword">throw</span> new RuntimeException(e);
+    }
+    <span class="comment">// main loop</span>
+    <span class="keyword">while</span> (<span class="literal">true</span>) {
+        <span class="keyword">try</span> {
+            IUpdate update = updates<span class="variable">.take</span>();
+            update<span class="variable">.dispatch</span>();
+        } <span class="keyword">catch</span> (InterruptedException e) {
+            <span class="keyword">return</span>;
+        } <span class="keyword">catch</span> (StorageException e) {
+            log<span class="variable">.error</span>(<span class="string">"Storage exception in controller "</span> + 
+                      <span class="string">"updates loop; terminating process"</span>, e);
+            <span class="keyword">return</span>;
+        } <span class="keyword">catch</span> (Exception e) {
+            log<span class="variable">.error</span>(<span class="string">"Exception in controller updates loop"</span>, e);
+        }
+    }
+}</code></pre>
+<p>Floodlight使用Netty serverBootstrap来处理与交换机之间的网络通信。在controller的run函数中，初始化serverBootstrap，并且添加Pipeline来负责处理接收到的交换机消息的处理顺序。</p>
+<p>Netty中的pipeline处理顺序分为upstream和downstream，处理时首先按照添加顺序处理upstream的handler，然后按照添加顺序的逆序处理downstream的handler。以Floodlight中的pipeline为例：</p>
+<pre><code>public ChannelPipeline getPipeline() throws Exception {
+    OFChannelState state = new OFChannelState()<span class="comment">;</span>
+
+    ChannelPipeline pipeline = Channels<span class="preprocessor">.pipeline</span>()<span class="comment">;</span>
+    pipeline<span class="preprocessor">.addLast</span>(<span class="string">"ofmessagedecoder"</span>, new OFMessageDecoder())<span class="comment">;</span>
+    pipeline<span class="preprocessor">.addLast</span>(<span class="string">"ofmessageencoder"</span>, new OFMessageEncoder())<span class="comment">;</span>
+    pipeline<span class="preprocessor">.addLast</span>(<span class="string">"idle"</span>, idleHandler)<span class="comment">;</span>
+    pipeline<span class="preprocessor">.addLast</span>(<span class="string">"timeout"</span>, readTimeoutHandler)<span class="comment">;</span>
+    pipeline<span class="preprocessor">.addLast</span>(<span class="string">"handshaketimeout"</span>,
+                     new HandshakeTimeoutHandler(state, timer, <span class="number">15</span>))<span class="comment">;</span>
+    if (pipelineExecutor != null)
+        pipeline<span class="preprocessor">.addLast</span>(<span class="string">"pipelineExecutor"</span>,
+                         new ExecutionHandler(pipelineExecutor))<span class="comment">;</span>
+    pipeline<span class="preprocessor">.addLast</span>(<span class="string">"handler"</span>, controller<span class="preprocessor">.getChannelHandler</span>(state))<span class="comment">;</span>
+    return pipeline<span class="comment">;</span>
+}</code></pre>
+<ul>
+<li>ofmessagedecoder, upstream</li>
+<li>ofmessageencoder, donwtream</li>
+<li>idleStateHandler upstream</li>
+<li>readTimeoutHandler upstream</li>
+<li>handshakeTimeoutHandler upstream</li>
+<li>handler, 即of的handler，upstream</li>
+</ul>
+<p>因此，当一个包到时的执行顺序为Ofmessagedecoder-&gt; IdleStateHandler-&gt; ReadTimeoutHandler-&gt; HandshakeTimeoutHandler-&gt; Handler-&gt; Ofmessageencoder。在这其中，handler是controller主要的处理逻辑。</p>
+<p>之后，主函数进入主循环。主循环主要处理一些更新，包括switchUpdate（包括add,remove,portchange），HARoleUpdate，HAControllerNodeIPUpdate。</p>
+<p>这些消息为什么要异步处理？</p>
+<p>OFChannelHandler类，该类实现一个channel handler负责处理和交换机的连接，并将接受的消息分发到合适的位置，每个OFChannelHandler对象，对应一个switch。</p>
+<pre><code>public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+        log<span class="preprocessor">.info</span>(<span class="string">"New switch connection from {}"</span>,
+                 e<span class="preprocessor">.getChannel</span>()<span class="preprocessor">.getRemoteAddress</span>())<span class="comment">;</span>
+
+        sw = new OFSwitchImpl()<span class="comment">;</span>
+        sw<span class="preprocessor">.setChannel</span>(e<span class="preprocessor">.getChannel</span>())<span class="comment">;</span>
+        sw<span class="preprocessor">.setFloodlightProvider</span>(Controller<span class="preprocessor">.this</span>)<span class="comment">;</span>
+        sw<span class="preprocessor">.setThreadPoolService</span>(threadPool)<span class="comment">;</span>
+
+        List&lt;OFMessage&gt; msglist = new ArrayList&lt;OFMessage&gt;(<span class="number">1</span>)<span class="comment">;</span>
+        msglist<span class="preprocessor">.add</span>(factory<span class="preprocessor">.getMessage</span>(OFType<span class="preprocessor">.HELLO</span>))<span class="comment">;</span>
+        e<span class="preprocessor">.getChannel</span>()<span class="preprocessor">.write</span>(msglist)<span class="comment">;</span>
+    }</code></pre>
+<p>ChannelConnected是重写函数，在交换机建立和控制器的连接时被自动调用。函数首先新建一个交换机实例，设置其通信channel，floodlightprovider和线程池。最后，发送HELLO消息。</p>
+<pre><code><span class="keyword">public</span> <span class="keyword">void</span> channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+        <span class="keyword">if</span> (sw != null &amp;&amp; state<span class="variable">.hsState</span> == HandshakeState<span class="variable">.READY</span>) {
+            <span class="keyword">if</span> (activeSwitches<span class="variable">.containsKey</span>(sw<span class="variable">.getId</span>())) {
+                <span class="comment">// It's safe to call removeSwitch even though the map might</span>
+                <span class="comment">// not contain this particular switch but another with the </span>
+                <span class="comment">// same DPID</span>
+                removeSwitch(sw);
+            }
+            <span class="keyword">synchronized</span>(roleChanger) {
+                connectedSwitches<span class="variable">.remove</span>(sw);
+            }
+            sw<span class="variable">.setConnected</span>(<span class="literal">false</span>);
+        }
+        log<span class="variable">.info</span>(<span class="string">"Disconnected switch {}"</span>, sw);
+    }
+<span class="keyword">protected</span> <span class="keyword">void</span> removeSwitch(IOFSwitch sw) {
+            log<span class="variable">.debug</span>(<span class="string">"removeSwitch: {}"</span>, sw);
+    <span class="keyword">if</span> (!<span class="keyword">this</span><span class="variable">.activeSwitches</span><span class="variable">.remove</span>(sw<span class="variable">.getId</span>(), sw) || !sw<span class="variable">.isConnected</span>()) {
+        log<span class="variable">.debug</span>(<span class="string">"Not removing switch {}; already removed"</span>, sw);
+        <span class="keyword">return</span>;
+    }
+    sw<span class="variable">.cancelAllStatisticsReplies</span>();
+
+    updateInactiveSwitchInfo(sw);
+    SwitchUpdate update = new SwitchUpdate(sw, SwitchUpdateType<span class="variable">.REMOVED</span>);
+    <span class="keyword">try</span> {
+        <span class="keyword">this</span><span class="variable">.updates</span><span class="variable">.put</span>(update);
+    } <span class="keyword">catch</span> (InterruptedException e) {
+        log<span class="variable">.error</span>(<span class="string">"Failure adding update to queue"</span>, e);
+    }
+}</code></pre>
+<p>channelDisconnected函数也是重写函数，在交换机和控制器断开连接时被自动调用。该函数从两个map中移除交换机：activeSwitches和connectedSwitches。RemoveSwitch函数将交换机从activeSwitches中移除。    在removeSwitch函数中首先调用activeSwitches.remove将其从活动交换机map中移除。然后调用cancelAllStatisticsReplies函数取消交换机所有的统计请求。updateInactiveSwitchInfo函数将非活跃状态的交换机同步到数据库。最后将交换机的移除消息放在updates中，由run函数的主循环处理更新消息的listener</p>
+<pre><code><span class="keyword">public</span> void messageReceived(ChannelHandlerContext ctx, MessageEvent e)
+            throws <span class="keyword">Exception</span> {
+        <span class="keyword">if</span> (e.getMessage() <span class="keyword">instanceof</span> <span class="keyword">List</span>) {
+            @SuppressWarnings(<span class="string">"unchecked"</span>)
+            <span class="keyword">List</span>&lt;OFMessage&gt; msglist = (<span class="keyword">List</span>&lt;OFMessage&gt;)e.getMessage();
+
+            <span class="keyword">for</span> (OFMessage ofm : msglist) {
+                <span class="keyword">try</span> {
+                    processOFMessage(ofm);
+                }
+                <span class="keyword">catch</span> (<span class="keyword">Exception</span> ex) {
+                    Channels.fireExceptionCaught(ctx.getChannel(), ex);
+                }
+            }
+
+            <span class="comment">// Flush all flow-mods/packet-out generated from this "train"</span>
+            OFSwitchImpl.flush_all();
+        }
+    }</code></pre>
+<p>Receivemessage函数是重写函数，在交换机的channel收到消息时自动调用该函数。通过MessageEvent获取消息，消息是以List方式保存的，因此遍历消息列表，并调用processOFMessage函数处理每一个消息。最后调用flush_all将要发送消息全部发送，该函数是静态函数，会将所有交换机的消息发送。</p>
+<pre><code><span class="keyword">protected</span> <span class="keyword">void</span> processOFMessage(OFMessage m)</code></pre>
+<p>该函数处理OF消息，如果是简单消息（如HELLO或ECHO_REQUEST等）就直接处理，复杂消息会再调用handleMessage函数进行进一步处理。</p>
+<pre><code><span class="keyword">protected</span> <span class="keyword">void</span> handleMessage(IOFSwitch sw, OFMessage m,  FloodlightContext bContext)</code></pre>
+<p>在handleMessage函数中，如果消息的类型是PACKET_IN要做一个特殊处理（这里不懂），然后进入default，然后获取注册了该消息类型的所有listener，然后分别执行listener的receive函数处理该消息。具体如文章一开始的控制器运行图所示。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+  
+  <div class="categories">
+    <a href="/categories/Floodlight/">Floodlight</a>
+  </div>
+
+        
+  
+  <div class="tags">
+    <a href="/tags/Floodlight/">Floodlight</a>, <a href="/tags/Controller/">Controller</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+<!-- Duoshuo Comment BEGIN -->
+	<div class="ds-thread"></div>
+<script type="text/javascript">
+var duoshuoQuery = {short_name:"weiwang1206"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = 'http://static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		|| document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+	</script>
+<!-- Duoshuo Comment END -->
+</section>
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:weiwang1206.github.io/">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/categories/Network/">Network</a><small>2</small></li>
+  
+    <li><a href="/categories/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/categories/Others/">Others</a><small>1</small></li>
+  
+    <li><a href="/categories/Photo/">Photo</a><small>2</small></li>
+  
+    <li><a href="/categories/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/categories/Research/">Research</a><small>1</small></li>
+  
+    <li><a href="/categories/Ryu/">Ryu</a><small>10</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Controller/">Controller</a><small>16</small></li>
+  
+    <li><a href="/tags/DataCenter Network/">DataCenter Network</a><small>1</small></li>
+  
+    <li><a href="/tags/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/tags/Flow Schedule/">Flow Schedule</a><small>1</small></li>
+  
+    <li><a href="/tags/Hexo/">Hexo</a><small>1</small></li>
+  
+    <li><a href="/tags/Network/">Network</a><small>4</small></li>
+  
+    <li><a href="/tags/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/tags/Photo/">Photo</a><small>1</small></li>
+  
+    <li><a href="/tags/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/tags/Ryu/">Ryu</a><small>10</small></li>
+  
+    <li><a href="/tags/Switch/">Switch</a><small>1</small></li>
+  
+    <li><a href="/tags/github/">github</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2014 Wei Wang
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

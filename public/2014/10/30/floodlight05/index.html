@@ -1,0 +1,354 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Floodlight No.5 | Wei's Blog</title>
+  <meta name="author" content="Wei Wang">
+  
+  <meta name="description" content="LinkDiscoverManager模块
+protected Command handlePacketIn(long sw, OFPacketIn pi,
+                                 FloodlightContext cntx) {
+    Ethernet eth = 
+            IFloodlightProviderService.bcStore.get(cntx, 
+                                                   IFloodlightProviderService.CONTEXT_PI_PAYLOAD);
+
+    if(eth.getEtherType() == Ethernet.TYPE_BSN) {
+        BSN bsn = (BSN) eth.getPayload();
+        if (bsn == null) return Command.STOP;
+        if (bsn.getPayload() == null) return Command.STOP;
+        // It could be a packet other than BSN LLDP, therefore
+        // continue with the regular processing.
+        if (bsn.getPayload() instanceof LLDP == false)
+            return Command.CONTINUE;
+        return handleLldp((LLDP) bsn.getPayload(), sw, pi, false, cntx);
+    } else if (eth.getEtherType() == Ethernet.TYPE_LLDP)  {
+        return handleLldp((LLDP) eth.getPayload(), sw, pi, true, cntx);
+    } else if (eth.getEtherType() &lt; 1500) {
+        long destMac = eth.getDestinationMAC().toLong();
+        if ((destMac &amp; LINK_LOCAL_MASK) == LINK_LOCAL_VALUE){
+            if (log.isTraceEnabled()) {
+                log.trace(&quot;Ignoring packet addressed to 802.1D/Q &quot; +
+                        &quot;reserved address.&quot;);
+            }
+            return Command.STOP;
+        }
+    }
+
+    // If packet-in is from a quarantine port, stop processing.
+    NodePortTuple npt = new NodePortTuple(sw, pi.getInPort());
+    if (quarantineQueue.contains(npt)) return Command.STOP;
+
+    return Command.CONTINUE;
+}">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Floodlight No.5"/>
+  <meta property="og:site_name" content="Wei's Blog"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Wei's Blog" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fee42232f9a9cfb4d15d91b1d836dbc7e' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'true']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Wei's Blog</a></h1>
+  <h2><a href="/">Build my new life</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">首页</a></li>
+    
+      <li><a href="/archives">归档</a></li>
+    
+      <li><a href="/about">关于</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-10-30T14:25:17.000Z"><a href="/2014/10/30/floodlight05/">10月 30 2014</a></time>
+      
+      
+  
+    <h1 class="title">Floodlight No.5</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>LinkDiscoverManager模块</h2>
+<pre><code><span class="keyword">protected</span> Command handlePacketIn(<span class="keyword">long</span> sw, OFPacketIn pi,
+                                 FloodlightContext cntx) {
+    Ethernet eth = 
+            IFloodlightProviderService<span class="variable">.bcStore</span><span class="variable">.get</span>(cntx, 
+                                                   IFloodlightProviderService<span class="variable">.CONTEXT_PI_PAYLOAD</span>);
+
+    <span class="keyword">if</span>(eth<span class="variable">.getEtherType</span>() == Ethernet<span class="variable">.TYPE_BSN</span>) {
+        BSN bsn = (BSN) eth<span class="variable">.getPayload</span>();
+        <span class="keyword">if</span> (bsn == null) <span class="keyword">return</span> Command<span class="variable">.STOP</span>;
+        <span class="keyword">if</span> (bsn<span class="variable">.getPayload</span>() == null) <span class="keyword">return</span> Command<span class="variable">.STOP</span>;
+        <span class="comment">// It could be a packet other than BSN LLDP, therefore</span>
+        <span class="comment">// continue with the regular processing.</span>
+        <span class="keyword">if</span> (bsn<span class="variable">.getPayload</span>() instanceof LLDP == <span class="literal">false</span>)
+            <span class="keyword">return</span> Command<span class="variable">.CONTINUE</span>;
+        <span class="keyword">return</span> handleLldp((LLDP) bsn<span class="variable">.getPayload</span>(), sw, pi, <span class="literal">false</span>, cntx);
+    } <span class="keyword">else</span> <span class="keyword">if</span> (eth<span class="variable">.getEtherType</span>() == Ethernet<span class="variable">.TYPE_LLDP</span>)  {
+        <span class="keyword">return</span> handleLldp((LLDP) eth<span class="variable">.getPayload</span>(), sw, pi, <span class="literal">true</span>, cntx);
+    } <span class="keyword">else</span> <span class="keyword">if</span> (eth<span class="variable">.getEtherType</span>() &lt; <span class="number">1500</span>) {
+        <span class="keyword">long</span> destMac = eth<span class="variable">.getDestinationMAC</span>()<span class="variable">.toLong</span>();
+        <span class="keyword">if</span> ((destMac &amp; LINK_LOCAL_MASK) == LINK_LOCAL_VALUE){
+            <span class="keyword">if</span> (log<span class="variable">.isTraceEnabled</span>()) {
+                log<span class="variable">.trace</span>(<span class="string">"Ignoring packet addressed to 802.1D/Q "</span> +
+                        <span class="string">"reserved address."</span>);
+            }
+            <span class="keyword">return</span> Command<span class="variable">.STOP</span>;
+        }
+    }
+
+    <span class="comment">// If packet-in is from a quarantine port, stop processing.</span>
+    NodePortTuple npt = new NodePortTuple(sw, pi<span class="variable">.getInPort</span>());
+    <span class="keyword">if</span> (quarantineQueue<span class="variable">.contains</span>(npt)) <span class="keyword">return</span> Command<span class="variable">.STOP</span>;
+
+    <span class="keyword">return</span> Command<span class="variable">.CONTINUE</span>;
+}</code></pre>
+<a id="more"></a>
+
+<p>在收到PacketIn消息是，调用handlePacketIn函数，处理LLDP包。首先检查以太网包的类型，一共有两种类型。一种直接是LLDP类型，一种是BSN类型，BSN类型是bigswitch公司自定义的一种类型（BDDP包，广播包），BSN类型包的负载也可能是LLDP包，因此在函数中做判断。如果发现是LLDP包，则调用handleLldp函数进行处理。LinkDiscoverManager模块在startup函数中，启动3个线程。其实，每个交换机不是自己主动发送LLDP包的，是controller定时发送action，使所有交换机发送LLDP包，然后交换机再将受到的LLDP包以PacketIn的方式返回给controller来处理，从而维护全网的link。</p>
+<p>第一个线程是：discoveryTask，标准LLDP协议定时发现线程</p>
+<pre><code>discoveryTask = new SingletonTask(ses, new Runnable() {
+        @Override
+        <span class="keyword">public</span> <span class="keyword">void</span> run() {
+            <span class="keyword">try</span> {
+                discoverLinks();
+            }
+ ……
+
+<span class="keyword">if</span> (role == null || role == Role<span class="variable">.MASTER</span>) {
+        log<span class="variable">.trace</span>(<span class="string">"Setup: Rescheduling discovery task. role = {}"</span>, role);
+        discoveryTask<span class="variable">.reschedule</span>(DISCOVERY_TASK_INTERVAL, TimeUnit<span class="variable">.SECONDS</span>);
+    } <span class="keyword">else</span> {
+            log<span class="variable">.trace</span>(<span class="string">"Setup: Not scheduling LLDP as role = {}."</span>, role);
+    }
+<span class="keyword">protected</span> <span class="keyword">void</span> discoverLinks() {
+
+    <span class="comment">// timeout known links.</span>
+    timeoutLinks();
+
+    <span class="comment">//increment LLDP clock</span>
+    lldpClock = (lldpClock + <span class="number">1</span>)% LLDP_TO_ALL_INTERVAL;
+
+    <span class="keyword">if</span> (lldpClock == <span class="number">0</span>) {
+        log<span class="variable">.debug</span>(<span class="string">"Sending LLDP out on all ports."</span>);
+        discoverOnAllPorts();
+    }
+}</code></pre>
+<p>该线程定时的（每DISCOVERY_TASK_INTERVAL秒执行一次）执行discoverLinks函数，discoverLink函数首先处理那些过时了的link（timeoutLinks），其次，每间隔LLDP_TO_ALL_INTERVAL要求全部交换机在所有端口发送LLDP包（discoverOnAllPorts）<br>第二个线程是：bddpTask，LLDP广播包。<br>链路发现服务使用LLDP和广播包（aka BDDPs）发现链路，LLDP的目的MAC地址是01:80:C2:00:00:0E，BDDP的目的地址是FF:FF:FF:FF:FF:FF，LLDP的以太网帧类型是0X88CC，BDDP的以太网帧类型是0X8999，链路发现服务能够正确地认知拓扑图是建立在两个假设上的：①所有的交换机都会销毁link-local packet（LLDP）②Honors layer 2 broadcasts。</p>
+<p>链路可以是直连的，也可以是广播。如果LLDP包从一个端口发出去，另外一个端口收到了相同的LLDP包，说明这两个端口是直连的，就会建立一个直连链路；如果一个BDDP包从一个端口发送，在其它的端口接收，说明在两个交换机之间有控制器无法控制的二层交换机，就会建立一个广播链路。</p>
+<pre><code>bddpTask = new SingletonTask(<span class="keyword">ses</span>, new QuarantineWorker())<span class="comment">;</span>
+bddpTask<span class="preprocessor">.reschedule</span>(BDDP_TASK_INTERVAL, TimeUnit<span class="preprocessor">.MILLISECONDS</span>)<span class="comment">;</span></code></pre>
+<p>第三个线程：updatesTread，该线程主要负责更新消息回调，如果链路或者端口发生变化，则调用已经注册的listener的回调函数，处理这些更新。</p>
+<pre><code>updatesThread = <span class="keyword">new</span> Thread(<span class="keyword">new</span> Runnable () {
+        <span class="annotation">@Override</span>
+        <span class="keyword">public</span> <span class="keyword">void</span> run() {
+            <span class="keyword">while</span> (<span class="keyword">true</span>) {
+                <span class="keyword">try</span> {
+                    doUpdatesThread();
+                } <span class="keyword">catch</span> (InterruptedException e) {
+                    <span class="keyword">return</span>;
+                }
+            }
+        }}, <span class="string">"Topology Updates"</span>);
+    updatesThread.start();</code></pre>
+<p><strong>HandleportStatus</strong></p>
+<p>处理port状态信息。首先判断是否要删除port或者是要关闭port，如果是这种情况，那么要删除与这个port向连的link，调用deleteLinksOnPort()函数。在该函数中，从switchLink中删除、PortLinks中删除、还有Links中删除。如果是端口修改，找到跟这个端口对应的link，然后修改对应的端口状态。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+  
+  <div class="categories">
+    <a href="/categories/Floodlight/">Floodlight</a>
+  </div>
+
+        
+  
+  <div class="tags">
+    <a href="/tags/Floodlight/">Floodlight</a>, <a href="/tags/Controller/">Controller</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+<!-- Duoshuo Comment BEGIN -->
+	<div class="ds-thread"></div>
+<script type="text/javascript">
+var duoshuoQuery = {short_name:"weiwang1206"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = 'http://static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		|| document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+	</script>
+<!-- Duoshuo Comment END -->
+</section>
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:weiwang1206.github.io/">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/categories/Network/">Network</a><small>2</small></li>
+  
+    <li><a href="/categories/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/categories/Others/">Others</a><small>1</small></li>
+  
+    <li><a href="/categories/Photo/">Photo</a><small>2</small></li>
+  
+    <li><a href="/categories/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/categories/Research/">Research</a><small>1</small></li>
+  
+    <li><a href="/categories/Ryu/">Ryu</a><small>10</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Controller/">Controller</a><small>16</small></li>
+  
+    <li><a href="/tags/DataCenter Network/">DataCenter Network</a><small>1</small></li>
+  
+    <li><a href="/tags/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/tags/Flow Schedule/">Flow Schedule</a><small>1</small></li>
+  
+    <li><a href="/tags/Hexo/">Hexo</a><small>1</small></li>
+  
+    <li><a href="/tags/Network/">Network</a><small>4</small></li>
+  
+    <li><a href="/tags/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/tags/Photo/">Photo</a><small>1</small></li>
+  
+    <li><a href="/tags/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/tags/Ryu/">Ryu</a><small>10</small></li>
+  
+    <li><a href="/tags/Switch/">Switch</a><small>1</small></li>
+  
+    <li><a href="/tags/github/">github</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2014 Wei Wang
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

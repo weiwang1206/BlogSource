@@ -1,0 +1,428 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Ryu代码解析（三） | Wei's Blog</title>
+  <meta name="author" content="Wei Wang">
+  
+  <meta name="description" content="RyuApp基类
+_CONTEXTS
+该变量是RyuApp基类中定义的上下文字典，app子类来填充这个变量。该变量用来说明子类想要使用的上下文模块。但是这个上下文模块的初始化是由AppManager来做的，而且相同的上下文模块对象在不同的app子类之间是共享的。例如：
+ _CONTEXTS = {
+        'network': network.Network
+    }
+
+    def __init__(self, *args, *kwargs):
+        // 这里的kwargs就是传进来的共享的上下文，然后获取其中的‘network’来初始化每个子类中的关心的上下文变量
+        self.network = kwargs['network']">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Ryu代码解析（三）"/>
+  <meta property="og:site_name" content="Wei's Blog"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Wei's Blog" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fee42232f9a9cfb4d15d91b1d836dbc7e' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'true']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Wei's Blog</a></h1>
+  <h2><a href="/">Build my new life</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">首页</a></li>
+    
+      <li><a href="/archives">归档</a></li>
+    
+      <li><a href="/about">关于</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-12-02T13:35:13.000Z"><a href="/2014/12/02/ryu-source-analysis-3/">12月 2 2014</a></time>
+      
+      
+  
+    <h1 class="title">Ryu代码解析（三）</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>RyuApp基类</h2>
+<p><strong>_CONTEXTS</strong></p>
+<p>该变量是RyuApp基类中定义的上下文字典，app子类来填充这个变量。该变量用来说明子类想要使用的上下文模块。但是这个上下文模块的初始化是由AppManager来做的，而且相同的上下文模块对象在不同的app子类之间是共享的。例如：</p>
+<pre><code> _CONTEXTS = {
+        <span class="string">'network'</span>: network.Network
+    }
+
+    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, *args, *kwargs)</span>:</span>
+        // 这里的kwargs就是传进来的共享的上下文，然后获取其中的‘network’来初始化每个子类中的关心的上下文变量
+        self.network = kwargs[<span class="string">'network'</span>] </code></pre>
+<p><a id="more"></a><br><strong>_EVENTS</strong></p>
+<p>A list of event classes which this RyuApp subclass would generate.This should be specified if and only if event classes are defined in a different python module from the RyuApp subclass is.</p>
+<p>暂时不太懂怎么用，请懂的朋友留言指点。</p>
+<p><strong>init函数</strong>：初始化成员变量</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, *_args, **_kwargs)</span>:</span>
+    super(RyuApp, self).__init__()
+    self.name = self.__class__.__name__
+    self.event_handlers = {}        <span class="comment"># ev_cls -&gt; handlers:list 事件处理函数字典key是事件，value是处理函数</span>
+    self.observers = {}     <span class="comment"># ev_cls -&gt; observer-name -&gt; states:set key是消息类，value是关注该消息的app</span>
+    self.threads = [] <span class="comment">#线程句柄</span>
+    self.events = hub.Queue(<span class="number">128</span>)
+    <span class="keyword">if</span> hasattr(self.__class__, <span class="string">'LOGGER_NAME'</span>):
+        self.logger = logging.getLogger(self.__class__.LOGGER_NAME)
+    <span class="keyword">else</span>:
+        self.logger = logging.getLogger(self.name)
+    self.CONF = cfg.CONF
+
+    <span class="comment"># prevent accidental creation of instances of this class outside RyuApp</span>
+    <span class="class"><span class="keyword">class</span> <span class="title">_EventThreadStop</span><span class="params">(event.EventBase)</span>:</span>
+        <span class="keyword">pass</span>
+    self._event_stop = _EventThreadStop()
+    self.is_active = <span class="built_in">True</span> <span class="comment">#激活</span></code></pre>
+<p><strong>start函数</strong>：启动该app，新建一个线程，线程执行_event_loop函数</p>
+<pre><code> <span class="function"><span class="keyword">def</span> <span class="title">start</span><span class="params">(self)</span>:</span>
+    <span class="string">"""
+    Hook that is called after startup initialization is done.
+    """</span>
+    self.threads.append(hub.spawn(self._event_loop))</code></pre>
+<p><strong>_event_loop函数</strong>： app主线程执行的函数，从消息队列event中取出事件，并根据事件类型调用不同的处理函数</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">_event_loop</span><span class="params">(self)</span>:</span>
+    <span class="keyword">while</span> self.is_active <span class="keyword">or</span> <span class="keyword">not</span> self.events.empty():
+        ev, state = self.events.get()
+        <span class="keyword">if</span> ev == self._event_stop:
+            <span class="keyword">continue</span>
+        handlers = self.get_handlers(ev, state) <span class="comment">#从event_handlers成员变量中获得key是ev类型的处理函数，而且处理函数的_dispatcher要符合当前的state才会返回该handler。</span>
+        <span class="keyword">for</span> handler <span class="keyword">in</span> handlers:
+            handler(ev)</code></pre>
+<p><strong>stop函数</strong>：停止app主线程</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">stop</span><span class="params">(self)</span>:</span>
+    self.is_active = <span class="built_in">False</span>
+    self._send_event(self._event_stop, <span class="built_in">None</span>)
+    hub.joinall(self.threads)</code></pre>
+<p><strong>register_handler</strong>:注册处理函数,保存在event_handlers变量中，key是事件类，value是一个list，保存关注该事件的处理函数，关注同一个事件的处理函数可能有多个所以保存在list中。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">register_handler</span><span class="params">(self, ev_cls, handler)</span>:</span>
+    <span class="keyword">assert</span> callable(handler)
+    self.event_handlers.setdefault(ev_cls, [])
+    self.event_handlers[ev_cls].append(handler)</code></pre>
+<p><strong>unregister_handler</strong>: 注销处理函数，具体操作为从event_handlers中删除该handler</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">unregister_handler</span><span class="params">(self, ev_cls, handler)</span>:</span>
+    <span class="keyword">assert</span> callable(handler)
+    self.event_handlers[ev_cls].remove(handler)
+    <span class="keyword">if</span> <span class="keyword">not</span> self.event_handlers[ev_cls]:
+        <span class="keyword">del</span> self.event_handlers[ev_cls]</code></pre>
+<p><strong>register_observer</strong>函数：该函数的主要作用是注册某个事件的观察者app（observer）。观察者的主要用途是，当本app收到一个事件时，会将该事件发送到注册的关心该事件的观察者的event队列中。主要是ofp_handler调用该函数来注册各种app，从而将其接受到的事件发送给各app</p>
+<pre><code> <span class="function"><span class="keyword">def</span> <span class="title">register_observer</span><span class="params">(self, ev_cls, name, states=None)</span>:</span>
+    states = states <span class="keyword">or</span> set()
+    ev_cls_observers = self.observers.setdefault(ev_cls, {})
+    ev_cls_observers.setdefault(name, set()).update(states)</code></pre>
+<p><strong>unregister_observer</strong>函数：将app从ev_cls事件的观察者set中去除。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">unregister_observer</span><span class="params">(self, ev_cls, name)</span>:</span>
+    observers = self.observers.get(ev_cls, {})
+    observers.pop(name)</code></pre>
+<p><strong>observe_event</strong>函数：向提供ev_cls事件的app注册本app为ev_cls的观察者，这个函数跟上面的不同的是让其他的app注册自己为一个观察者。</p>
+<pre><code> <span class="function"><span class="keyword">def</span> <span class="title">observe_event</span><span class="params">(self, ev_cls, states=None)</span>:</span>
+    brick = _lookup_service_brick_by_ev_cls(ev_cls)
+    <span class="keyword">if</span> brick <span class="keyword">is</span> <span class="keyword">not</span> <span class="built_in">None</span>:
+        brick.register_observer(ev_cls, self.name, states)</code></pre>
+<p><strong>observe_event</strong>函数：从提供ev_cls事件的app的观察者列表中删除本app。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">unobserve_event</span><span class="params">(self, ev_cls)</span>:</span>
+    brick = _lookup_service_brick_by_ev_cls(ev_cls)
+    <span class="keyword">if</span> brick <span class="keyword">is</span> <span class="keyword">not</span> <span class="built_in">None</span>:
+        brick.unregister_observer(ev_cls, self.name)</code></pre>
+<p>get_handlers函数: 该函数主要功能是获取 交换机处于state状态时的ev事件的处理函数。在当某一个app编写一个handler的时候使用se_ev_cls装饰器时，就指定了该处理函数处理的事件以及其关心的dispatcher（也就是这里的state），因此当调用get_handlers函数时，state和处理函数定义的dispatcher不符合时，就不包括该处理函数了。如果state是空，则返回ev的所有处理函数。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">get_handlers</span><span class="params">(self, ev, state=None)</span>:</span>
+    <span class="string">"""Returns a list of handlers for the specific event.
+
+    :param ev: The event to handle.
+    :param state: The current state. ("dispatcher")
+                  If None is given, returns all handlers for the event.
+                  Otherwise, returns only handlers that are interested
+                  in the specified state.
+                  The default is None.
+    """</span>
+    ev_cls = ev.__class__
+    <span class="comment">#先不管state，先获取事件的处理函数</span>
+    handlers = self.event_handlers.get(ev_cls, [])
+    <span class="keyword">if</span> state <span class="keyword">is</span> <span class="built_in">None</span>:
+        <span class="keyword">return</span> handlers
+    <span class="comment"># 该函数判断处理函数 h 是否关心处于state状态的时间，如果关心则返回true</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">test</span><span class="params">(h)</span>:</span> 
+        <span class="keyword">if</span> <span class="keyword">not</span> hasattr(h, <span class="string">'callers'</span>) <span class="keyword">or</span> ev_cls <span class="keyword">not</span> <span class="keyword">in</span> h.callers:
+            <span class="comment"># dynamically registered handlers does not have</span>
+            <span class="comment"># h.callers element for the event.</span>
+            <span class="keyword">return</span> <span class="built_in">True</span>
+        states = h.callers[ev_cls].dispatchers
+        <span class="keyword">if</span> <span class="keyword">not</span> states:
+            <span class="comment"># empty states means all states</span>
+            <span class="keyword">return</span> <span class="built_in">True</span>
+        <span class="keyword">return</span> state <span class="keyword">in</span> states
+
+    \<span class="comment">#使用filter函数，过滤符合state条件的处理函数，并返回</span>
+    <span class="keyword">return</span> filter(test, handlers)</code></pre>
+<p><strong>get_getobservers函数：</strong>获取observers中保存的所有的观察者。</p>
+<pre><code> <span class="function"><span class="keyword">def</span> <span class="title">get_observers</span><span class="params">(self, ev, state)</span>:</span>
+    observers = []
+    <span class="keyword">for</span> k, v <span class="keyword">in</span> self.observers.get(ev.__class__, {}).iteritems():
+        <span class="keyword">if</span> <span class="keyword">not</span> state <span class="keyword">or</span> <span class="keyword">not</span> v <span class="keyword">or</span> state <span class="keyword">in</span> v:
+            observers.append(k)
+
+    <span class="keyword">return</span> observers</code></pre>
+<p><strong>send_request</strong>函数：发送一个同步的请求。seq是一个EventRequestBase的实例，sync属性设置为真，表示为同步请求，回复结果保存在reply_q队列中，通过send_event函数发送给req.dst，然后阻塞自己更待回复。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">send_request</span><span class="params">(self, req)</span>:</span>
+    <span class="string">"""
+    Make a synchronous request.
+    Set req.sync to True, send it to a Ryu application specified by
+    req.dst, and block until receiving a reply.
+    Returns the received reply.
+    The argument should be an instance of EventRequestBase.
+    """</span>
+
+    <span class="keyword">assert</span> isinstance(req, EventRequestBase)
+    req.sync = <span class="built_in">True</span>
+    req.reply_q = hub.Queue()
+    self.send_event(req.dst, req)
+    <span class="comment"># going to sleep for the reply</span>
+    <span class="keyword">return</span> req.reply_q.get()</code></pre>
+<p><strong>send_event</strong>函数: 发送事件ev给名叫name的app实例。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">send_event</span><span class="params">(self, name, ev, state=None)</span>:</span>
+    <span class="string">"""
+    Send the specified event to the RyuApp instance specified by name.
+    """</span>
+
+    <span class="keyword">if</span> name <span class="keyword">in</span> SERVICE_BRICKS:
+        <span class="keyword">if</span> isinstance(ev, EventRequestBase):
+            ev.src = self.name <span class="comment">#发送的事件的源设置为自己</span>
+        LOG.debug(<span class="string">"EVENT %s-&gt;%s %s"</span> %
+                  (self.name, name, ev.__class__.__name__))
+        SERVICE_BRICKS[name]._send_event(ev, state) <span class="comment">#获取名字为name的app实例，调用其_send_event函数将事件加入其事件队列，我觉得函数名应该叫_add_event更加贴切</span>
+    <span class="keyword">else</span>:
+        LOG.debug(<span class="string">"EVENT LOST %s-&gt;%s %s"</span> %
+                  (self.name, name, ev.__class__.__name__))
+
+<span class="function"><span class="keyword">def</span> <span class="title">_send_event</span><span class="params">(self, ev, state)</span>:</span>
+    self.events.put((ev, state)) <span class="comment">#将事件加入事件队列</span></code></pre>
+<p>send_event_to_observers函数:将事件发送给observers中的app实例。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">send_event_to_observers</span><span class="params">(self, ev, state=None)</span>:</span>
+    <span class="string">"""
+    Send the specified event to all observers of this RyuApp.
+    """</span>
+
+    <span class="keyword">for</span> observer <span class="keyword">in</span> self.get_observers(ev, state):
+        self.send_event(observer, ev, state)</code></pre>
+<p>reply_to_request函数：这个是send_request函数的应答函数，将rep回复发送给req端。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">reply_to_request</span><span class="params">(self, req, rep)</span>:</span>
+    <span class="string">"""
+    Send a reply for a synchronous request sent by send_request.
+    The first argument should be an instance of EventRequestBase.
+    The second argument should be an instance of EventReplyBase.
+    """</span>
+
+    <span class="keyword">assert</span> isinstance(req, EventRequestBase)
+    <span class="keyword">assert</span> isinstance(rep, EventReplyBase)
+    rep.dst = req.src
+    <span class="keyword">if</span> req.sync:
+        req.reply_q.put(rep)
+    <span class="keyword">else</span>:
+        self.send_event(rep.dst, rep)</code></pre>
+<p>close函数：关闭app函数，什么都没做。</p>
+<pre><code> <span class="function"><span class="keyword">def</span> <span class="title">close</span><span class="params">(self)</span>:</span>
+    <span class="string">"""
+    teardown method.
+    The method name, close, is chosen for python context manager
+    """</span>
+    <span class="keyword">pass</span></code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+  
+  <div class="categories">
+    <a href="/categories/Ryu/">Ryu</a>
+  </div>
+
+        
+  
+  <div class="tags">
+    <a href="/tags/Ryu/">Ryu</a>, <a href="/tags/Controller/">Controller</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+<!-- Duoshuo Comment BEGIN -->
+	<div class="ds-thread"></div>
+<script type="text/javascript">
+var duoshuoQuery = {short_name:"weiwang1206"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = 'http://static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		|| document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+	</script>
+<!-- Duoshuo Comment END -->
+</section>
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:weiwang1206.github.io/">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/categories/Network/">Network</a><small>2</small></li>
+  
+    <li><a href="/categories/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/categories/Others/">Others</a><small>1</small></li>
+  
+    <li><a href="/categories/Photo/">Photo</a><small>2</small></li>
+  
+    <li><a href="/categories/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/categories/Research/">Research</a><small>1</small></li>
+  
+    <li><a href="/categories/Ryu/">Ryu</a><small>10</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Controller/">Controller</a><small>16</small></li>
+  
+    <li><a href="/tags/DataCenter Network/">DataCenter Network</a><small>1</small></li>
+  
+    <li><a href="/tags/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/tags/Flow Schedule/">Flow Schedule</a><small>1</small></li>
+  
+    <li><a href="/tags/Hexo/">Hexo</a><small>1</small></li>
+  
+    <li><a href="/tags/Network/">Network</a><small>4</small></li>
+  
+    <li><a href="/tags/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/tags/Photo/">Photo</a><small>1</small></li>
+  
+    <li><a href="/tags/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/tags/Ryu/">Ryu</a><small>10</small></li>
+  
+    <li><a href="/tags/Switch/">Switch</a><small>1</small></li>
+  
+    <li><a href="/tags/github/">github</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2014 Wei Wang
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

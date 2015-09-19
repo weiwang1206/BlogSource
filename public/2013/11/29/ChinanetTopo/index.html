@@ -1,0 +1,262 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>ChinaNet骨干网拓扑结构 | Wei's Blog</title>
+  <meta name="author" content="Wei Wang">
+  
+  <meta name="description" content="Chinanet 骨干网的拓扑结构逻辑上分为两层，即核心层和大区层。
+1.1 核心层
+核心层由北京、上海、广州、沈阳、南京、武汉、成都、西安等8个城市的核心节点组成。">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="ChinaNet骨干网拓扑结构"/>
+  <meta property="og:site_name" content="Wei's Blog"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Wei's Blog" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fee42232f9a9cfb4d15d91b1d836dbc7e' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'true']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Wei's Blog</a></h1>
+  <h2><a href="/">Build my new life</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">首页</a></li>
+    
+      <li><a href="/archives">归档</a></li>
+    
+      <li><a href="/about">关于</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div></header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2013-11-29T15:15:02.000Z"><a href="/2013/11/29/ChinanetTopo/">11月 29 2013</a></time>
+      
+      
+  
+    <h1 class="title">ChinaNet骨干网拓扑结构</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>Chinanet 骨干网的拓扑结构逻辑上分为两层，即核心层和大区层。</p>
+<p>1.1 核心层</p>
+<p>核心层由北京、上海、广州、沈阳、南京、武汉、成都、西安等8个城市的核心节点组成。</p>
+<p><a id="more"></a><br>核心层的功能主要是提供与国际internet的互联，以及提供大区之间信息交换的通路。其中北京、上海、广州核心层节点各设有两台国际出口路由器，负责与国际i nternet互联，以及两台核心路由器与其他核心节点互联；其他核心节点各设一台核心路由器。</p>
+<p>核心节点之间为不完全网状结构。以北京、上海、广州为中心的三中心结构，其他核心节点分别以至少两条高速ATM链路与这三个中心相连。</p>
+<p>1.2 大区层</p>
+<p>全国31个省会城市按照行政区划，以上述8个核心节点为中心划分为8个大区网络，这8个大区网共同构成了大区层。每个大区设两个大区出口，大区内其它非出口节点分别与两个出口相连。</p>
+<p>大区层主要提供大区内的信息交换以及接入网接入chinanet的信息通路。<br>大区之间通信必须经过核心层。</p>
+<ol>
+<li>路由协议</li>
+</ol>
+<p>当前路由政策国际部分采用BGP4与国外其它网络进行路由交换，国内部分采用BGP4进行与省网内进行地址交换，而采用IS-IS进行骨干网内部的路由选择。</p>
+<p>2.1 BGP</p>
+<p>BGP是域间路由协议。Chinanet骨干网申请的自治域号为4134，Chinanet作为一个独立的自治域，采用BGP路由协议与国际 internet及各省接入网交换路由信息。骨干网内路由器之间是I BGP，骨干网和国外及接入网之间是EBGP。但是IBGP路由在自治域内只会向前传递一次，所以IBGP路由器之间需要具有全网状连接（full mesh），才能保证每台路由器都收到完整的路由，但是骨干网内路由器数量很多，做全网状连接是不现实的，因此骨干网采用BGP Confedration 的方法；对内将骨干网用私有AS号划分为9个私有AS域，每一个小的自治域中，IBGP采用全网状的联接方式，自治域之间为EBGP联接方式。对外通过BGP Confedration将这些AS集合成一个独立的AS 4134。这样，ChinaNET骨干网就采用AS 4134分别与国际Internet以及各省网交换路由信息，在内部用私有AS号交换路由。</p>
+<p>2.2 ISIS</p>
+<p>ISIS是一种IGP(内部网关协议)，通过ISIS路由协议可以对从BGP学来的nexthop进行寻径。</p>
+<p>在ChinaNET骨干网中使用single IGP。即核心层及八个大区层网络中使用同一个Tag(core)的IS-IS。采用Single IGP的好处是所有的IS-IS路由器可以正常地交换IS-IS路由信息。如果采用不同的Tag，则不同tag下的isis彼此交换路由，需要 redistrib ute，这将导致许多不必要的麻烦。</p>
+<p>2.1.1 AREA的划分</p>
+<p>ISIS路由协议是一种link state路由协议，它的一个特点就是在一个域内可以分为很多个区，如果一台路由器的路由表发生变化，它就会向本区内的其他路由器广播这一变化，直到同一区内的所有路由器都将形成一张完全相同的本区的拓扑图为止。由于ChinaNET骨干网路由器及链路数量很多，如果所有路由器都在一个区的话，每一条路由的变化，都会导致全网的路由器进行路由更新，这将大大降低网络的效率。因此根据骨干网的网络结构状况，将chinanet划分为九个IS-IS域，核心层网络与八个大区层网络分别处于一个独立的区域内。这样就将链路状态的频繁变化对网络的影响限制于一个区域内部，而不致于对全网产生影响。</p>
+<p>2.1.2 Level-1和Level-2路由</p>
+<p>在ISIS中，路由可分为两类：level-1和level-2。level-1的链路信息可以从level-2的链路上广播，而level-2的链路信息不可以从level -1的链路上广播。level-1的路由和level-2的路由在路由器内分别在两个数据库中。如果某台路由器只有level-1路由的数据库，则称为l evel-1 router ，反之为level-2路由器。level-1 router只和与它具有相同area id的路由器交换路由信息，而level-2路由器可以和与它具有相同area id的路由器交换路由信息。如果level-1 router发现IP包的目的地址与它的area id 不同，它就会将此包自动转发到离它最近的(并不一定最好)的level-2路由器上。区分level-1和level-2路由可以减少路由交换的数量，提高网络的效率。</p>
+<p>2.1.3 ISIS metric</p>
+<p>ISIS 的路由选择通过metric实现，metric值越小越优先。Metric的范围为0～63，缺省为10。目前Chinanet骨干网根据主要根据链路带宽的大小设置m etric的优先级，带宽越大，metric值越小，这样网络可以动态地优先选择大带宽的路径。</p>
+<p>2.1.4 静态路由和直连路由的广播</p>
+<p>路由器上设置的静态路由，为了使它加入到ISIS的路由表中去，需要将静态路由redistribute进ISIS中。同样，在isis core 的边缘上路由器，如国际出口链路和大区与接入之间链路，也需要redistribute进ISIS。<br>Redistribute的原则是：国际和核心路由器redistribute进level-2，大区出口路由器redistribute进level-1和level-2，大区内路由器r edistribute进level-1。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+  
+  <div class="categories">
+    <a href="/categories/Network/">Network</a>
+  </div>
+
+        
+  
+  <div class="tags">
+    <a href="/tags/Network/">Network</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+<!-- Duoshuo Comment BEGIN -->
+	<div class="ds-thread"></div>
+<script type="text/javascript">
+var duoshuoQuery = {short_name:"weiwang1206"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = 'http://static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		|| document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+	</script>
+<!-- Duoshuo Comment END -->
+</section>
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:weiwang1206.github.io/">
+  </form>
+</div>
+
+  
+<div class="widget tag">
+  <h3 class="title">分类</h3>
+  <ul class="entry">
+  
+    <li><a href="/categories/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/categories/Network/">Network</a><small>2</small></li>
+  
+    <li><a href="/categories/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/categories/Others/">Others</a><small>1</small></li>
+  
+    <li><a href="/categories/Photo/">Photo</a><small>2</small></li>
+  
+    <li><a href="/categories/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/categories/Research/">Research</a><small>1</small></li>
+  
+    <li><a href="/categories/Ryu/">Ryu</a><small>10</small></li>
+  
+  </ul>
+</div>
+
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Controller/">Controller</a><small>16</small></li>
+  
+    <li><a href="/tags/DataCenter Network/">DataCenter Network</a><small>1</small></li>
+  
+    <li><a href="/tags/Floodlight/">Floodlight</a><small>6</small></li>
+  
+    <li><a href="/tags/Flow Schedule/">Flow Schedule</a><small>1</small></li>
+  
+    <li><a href="/tags/Hexo/">Hexo</a><small>1</small></li>
+  
+    <li><a href="/tags/Network/">Network</a><small>4</small></li>
+  
+    <li><a href="/tags/OpenStack/">OpenStack</a><small>1</small></li>
+  
+    <li><a href="/tags/Photo/">Photo</a><small>1</small></li>
+  
+    <li><a href="/tags/Python/">Python</a><small>2</small></li>
+  
+    <li><a href="/tags/Ryu/">Ryu</a><small>10</small></li>
+  
+    <li><a href="/tags/Switch/">Switch</a><small>1</small></li>
+  
+    <li><a href="/tags/github/">github</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2014 Wei Wang
+  
+</div>
+<div class="clearfix"></div></footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>
